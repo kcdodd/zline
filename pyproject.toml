@@ -1,0 +1,34 @@
+[project]
+name = "zline"
+version = "0.0.1"
+
+dependencies = [
+  'numpy' ]
+
+[build-system]
+# specify this package as a build dependency
+requires = [
+  "partis-pyproj" ]
+
+# direct the installer to the PEP-517 backend
+build-backend = "partis.pyproj.backend"
+
+[tool.pyproj.dist]
+# define patterns of files to ignore for any type of distribution
+ignore = [
+  '__pycache__',
+  '*.py[cod]',
+  '*.so',
+  '*.egg-info' ]
+
+[tool.pyproj.dist.source]
+# define what files/directories should be copied into a source distribution
+copy = [
+  'src',
+  'pyproject.toml' ]
+
+[tool.pyproj.dist.binary.purelib]
+# define what files/directories should be copied into a binary distribution
+# the 'dst' will correspond to the location of the file in 'site-packages'
+copy = [
+  { src = 'src/zline', dst = 'zline' } ]
