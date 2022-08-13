@@ -1,20 +1,49 @@
 import numpy as np
 
+# The indexing for box drawing character lookup is constructed by forming
+# connections between the four sides of a character cell.
+# ┌--T──┐
+# │     │
+# L     R
+# │     │
+# └──B──┘
+# Connections are formed by taking the bit-wise 'or' of the elemental constants
+# L, R, T, B.
+# Heavy and double lines are added using a 3-bit field for each of the four
+# constants, resulting in a total of 12bits per character field to define the
+# connections and the weight of the formed line(s).
+# The constants are chosen so that a bit-wise 'or' will result in a line that
+# maintains maximum line thickness.
+# light | light -> light
+# light | heavy -> heavy
+# heavy | double -> double
+# light | double -> double
+
+# constants defined using 4x 'octal' (3-bit) number
+# h: heavy, d: double
+
+# left
 L = 0o1000
 Lh = 0o3000
 Ld = 0o7000
 
+# right
 R = 0o0001
 Rh = 0o0003
 Rd = 0o0007
 
+# top
 T = 0o0100
 Th = 0o0300
 Td = 0o0700
 
+# bottom
 B = 0o0010
 Bh = 0o0030
 Bd = 0o0070
+
+# arc
+A = 0o10000
 
 _LINES = [
   (L,  '╴'),
@@ -33,105 +62,105 @@ _LINES = [
   (T|Bh,  '╽'),
   (Lh|R,  '╾'),
   (Th|B,  '╿'),
-  (R|B, '┌'),
-  (Rh|B, '┍'),
-  (R|Bh, '┎'),
+  (R|B,   '┌'),
+  (Rh|B,  '┍'),
+  (R|Bh,  '┎'),
   (Rh|Bh, '┏'),
-  (L|B, '┐'),
-  (Lh|B, '┑'),
-  (L|Bh, '┒'),
+  (L|B,   '┐'),
+  (Lh|B,  '┑'),
+  (L|Bh,  '┒'),
   (Lh|Bh, '┓'),
-  (T|R, '└'),
-  (T|Rh, '┕'),
-  (Th|R, '┖'),
+  (T|R,   '└'),
+  (T|Rh,  '┕'),
+  (Th|R,  '┖'),
   (Th|Rh, '┗'),
-  (L|T, '┘'),
-  (Lh|T, '┙'),
-  (L|Th, '┚'),
+  (L|T,   '┘'),
+  (Lh|T,  '┙'),
+  (L|Th,  '┚'),
   (Lh|Th, '┛'),
-  (T|R|B, '├'),
-  (T|Rh|B, '┝'),
-  (Th|R|B, '┞'),
-  (T|R|Bh, '┟'),
-  (Th|R|Bh, '┠'),
-  (Th|Rh|B, '┡'),
-  (T|Rh|Bh, '┢'),
+  (T|R|B,    '├'),
+  (T|Rh|B,   '┝'),
+  (Th|R|B,   '┞'),
+  (T|R|Bh,   '┟'),
+  (Th|R|Bh,  '┠'),
+  (Th|Rh|B,  '┡'),
+  (T|Rh|Bh,  '┢'),
   (Th|Rh|Bh, '┣'),
-  (T|L|B, '┤'),
-  (T|Lh|B, '┥'),
-  (Th|L|B, '┦'),
-  (T|L|Bh, '┧'),
-  (Th|L|Bh, '┨'),
-  (Th|Lh|B, '┩'),
-  (T|Lh|Bh, '┪'),
+  (T|L|B,    '┤'),
+  (T|Lh|B,   '┥'),
+  (Th|L|B,   '┦'),
+  (T|L|Bh,   '┧'),
+  (Th|L|Bh,  '┨'),
+  (Th|Lh|B,  '┩'),
+  (T|Lh|Bh,  '┪'),
   (Th|Lh|Bh, '┫'),
-  (L|B|R, '┬'),
-  (Lh|B|R, '┭'),
-  (L|B|Rh, '┮'),
-  (Lh|B|Rh, '┯'),
-  (L|Bh|R, '┰'),
-  (Lh|Bh|R, '┱'),
-  (L|Bh|Rh, '┲'),
+  (L|B|R,    '┬'),
+  (Lh|B|R,   '┭'),
+  (L|B|Rh,   '┮'),
+  (Lh|B|Rh,  '┯'),
+  (L|Bh|R,   '┰'),
+  (Lh|Bh|R,  '┱'),
+  (L|Bh|Rh,  '┲'),
   (Lh|Bh|Rh, '┳'),
-  (L|T|R, '┴'),
-  (Lh|T|R, '┵'),
-  (L|T|Rh, '┶'),
-  (Lh|T|Rh, '┷'),
-  (L|Th|R, '┸'),
-  (Lh|Th|R, '┹'),
-  (L|Th|Rh, '┺'),
+  (L|T|R,    '┴'),
+  (Lh|T|R,   '┵'),
+  (L|T|Rh,   '┶'),
+  (Lh|T|Rh,  '┷'),
+  (L|Th|R,   '┸'),
+  (Lh|Th|R,  '┹'),
+  (L|Th|Rh,  '┺'),
   (Lh|Th|Rh, '┻'),
-  (L|T|R|B, '┼'),
-  (Lh|T|R|B, '┽'),
-  (L|T|Rh|B, '┾'),
-  (Lh|T|Rh|B, '┿'),
-  (L|Th|R|B, '╀'),
-  (L|T|R|Bh, '╁'),
-  (L|Th|R|Bh, '╂'),
-  (Lh|Th|R|B, '╃'),
-  (L|Th|Rh|B, '╄'),
-  (Lh|T|R|Bh, '╅'),
-  (L|T|Rh|Bh, '╆'),
-  (Lh|Th|Rh|B, '╇'),
-  (Lh|T|Rh|Bh, '╈'),
-  (Lh|Th|R|Bh, '╉'),
-  (L|Th|Rh|Bh, '╊'),
+  (L|T|R|B,     '┼'),
+  (Lh|T|R|B,    '┽'),
+  (L|T|Rh|B,    '┾'),
+  (Lh|T|Rh|B,   '┿'),
+  (L|Th|R|B,    '╀'),
+  (L|T|R|Bh,    '╁'),
+  (L|Th|R|Bh,   '╂'),
+  (Lh|Th|R|B,   '╃'),
+  (L|Th|Rh|B,   '╄'),
+  (Lh|T|R|Bh,   '╅'),
+  (L|T|Rh|Bh,   '╆'),
+  (Lh|Th|Rh|B,  '╇'),
+  (Lh|T|Rh|Bh,  '╈'),
+  (Lh|Th|R|Bh,  '╉'),
+  (L|Th|Rh|Bh,  '╊'),
   (Lh|Th|Rh|Bh, '╋'),
   (Ld|Rd, '═'),
   (Td|Bd, '║'),
-  (Rd|B, '╒'),
-  (R|Bd, '╓'),
+  (Rd|B,  '╒'),
+  (R|Bd,  '╓'),
   (Rd|Bd, '╔'),
-  (Ld|B, '╕'),
-  (L|Bd, '╖'),
+  (Ld|B,  '╕'),
+  (L|Bd,  '╖'),
   (Ld|Bd, '╗'),
-  (T|Rd, '╘'),
-  (Td|R, '╙'),
+  (T|Rd,  '╘'),
+  (Td|R,  '╙'),
   (Td|Rd, '╚'),
-  (Ld|T, '╛'),
-  (L|Td, '╜'),
+  (Ld|T,  '╛'),
+  (L|Td,  '╜'),
   (Ld|Td, '╝'),
-  (T|Rd|B, '╞'),
-  (Td|R|Bd, '╟'),
+  (T|Rd|B,   '╞'),
+  (Td|R|Bd,  '╟'),
   (Td|Rd|Bd, '╠'),
-  (Ld|T|B, '╡'),
-  (L|Td|Bd, '╢'),
+  (Ld|T|B,   '╡'),
+  (L|Td|Bd,  '╢'),
   (Ld|Td|Bd, '╣'),
-  (Ld|Rd|B, '╤'),
-  (L|R|Bd, '╥'),
+  (Ld|Rd|B,  '╤'),
+  (L|R|Bd,   '╥'),
   (Ld|Rd|Bd, '╦'),
-  (Ld|T|Rd, '╧'),
-  (L|Td|R, '╨'),
+  (Ld|T|Rd,  '╧'),
+  (L|Td|R,   '╨'),
   (Ld|Td|Rd, '╩'),
-  (Ld|T|Rd|B, '╪'),
-  (L|Td|R|Bd, '╫'),
+  (Ld|T|Rd|B,   '╪'),
+  (L|Td|R|Bd,   '╫'),
   (Ld|Td|Rd|Bd, '╬') ]
 
-_ROUNDED = [
-  (R|B, '╭'),
-  (L|B, '╮'),
-  (L|T, '╯'),
-  (T|R, '╰') ]
+_ARCS = [
+  (A|R|B, '╭'),
+  (A|L|B, '╮'),
+  (A|L|T, '╯'),
+  (A|T|R, '╰') ]
 
 LINES = np.zeros((2*4096,), dtype = np.unicode_)
 # LINES[:] = '�'
@@ -140,10 +169,12 @@ LINES[:] = ' '
 for i, c in _LINES:
   LINES[i] = c
 
+# NOTE: the 'arc' flag doubles the space of lines, but re-uses 'non-arcs' for
+# all but the four 'corners'
 LINES[4096:] = LINES[:4096]
 
-for i, c in _ROUNDED:
-  LINES[i + 4096] = c
+for i, c in _ARCS:
+  LINES[i] = c
 
 # LINES[L]     = '╴'
 # LINES[R]     = '╶'
