@@ -10,14 +10,24 @@ from zline.render import (
 with Canvas(shape=(20,20)) as app:
 
   app.cells.append( Box(
-        pos = (2, 2),
-        shape = (8, 8),
-        border_color = '#f00' ) )
+    pos = (2, 2),
+    shape = (8, 10),
+    text = "hello",
+    ctext = '#ff0',
+    cborder = '#f00' ) )
 
   app.cells.append( Box(
-        pos = (6, 6),
-        shape = (8, 8),
-        border_color = '#00f' ) )
+    pos = (5, 6),
+    shape = (8, 8),
+    text = "world",
+    ctext = '#0ff',
+    cborder = '#00f' ) )
+
+  app.cells.append( Box(
+    pos = (7, 4),
+    shape = (5, 5),
+    jborder = True,
+    cborder = '#0f0' ) )
 
   # print(app.buf)
   app.render()

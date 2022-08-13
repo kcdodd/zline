@@ -35,25 +35,38 @@ class Tile:
 class Box(Tile):
   #-----------------------------------------------------------------------------
   def __init__(self,*,
-    border_color = '#fff',
+    text = '',
+    ctext = '#fff',
+    cborder = '#fff',
+    jborder = False,
     **kwargs):
 
     super().__init__(**kwargs)
 
-    self.border_color = norm_rgb(border_color)
-    # print(border_color, self.border_color)
+    self.text = text
+    # print(self.text)
+    self.ctext = norm_rgb(ctext)
+    self.cborder = norm_rgb(cborder)
+    self.jborder = jborder
 
   #-----------------------------------------------------------------------------
   def render(self):
     h, w = self.shape
 
+    text = [
+      np.array(list(l), dtype = np.unicode_)
+      for l in (self.text.splitlines() if self.text else [''])]
 
-    # self.buf[0,0] = '╭'
-    # self.buf[0,-1] = '╮'
-    # self.buf[-1,0] = '╰'
-    # self.buf[-1,-1] = '╯'
-    # self.buf[[0, -1],1:-1] = '─'
-    # self.buf[1:-1,[0, -1]] = '│'
+    for i, l in enumerate(text):
+      if i >= h-2:
+        break
+
+      n = min(w-2, len(l))
+      _buf = self.buf[i+1, 1:(n+1)]
+      _l = l[:n]
+
+      _buf[:] = _l
+
 
     self.lines[:] = 0
     self.lines[0,0] = R|B # '╭'
@@ -64,18 +77,16 @@ class Box(Tile):
     self.lines[1:-1,[0, -1]] = T|B # '│'
 
     self.exterior[:] = 0
-    self.exterior[:,0] = L|T|B
-    self.exterior[:,-1] = R|T|B
-    self.exterior[0,:] |= T|L|R
-    self.exterior[-1,:] |= B|L|R
 
+    if self.jborder:
+      self.exterior[:,0] = L|T|B
+      self.exterior[:,-1] = R|T|B
+      self.exterior[0,:] |= T|L|R
+      self.exterior[-1,:] |= B|L|R
 
-    # self.buf[:] = '\0'
-    # self.buf[self.lines == 0] = ' '
-
-    self.fg[:] = 255
-    self.fg[:,[0, -1]] = self.border_color
-    self.fg[[0, -1],:] = self.border_color
+    self.fg[:] = self.ctext
+    self.fg[:,[0, -1]] = self.cborder
+    self.fg[[0, -1],:] = self.cborder
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Canvas:
