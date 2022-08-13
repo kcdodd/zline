@@ -5,7 +5,8 @@ from .border import (
 from .tile import (
   TextStyle,
   TextWrapper,
-  TextBox )
+  Box,
+  Text )
 
 from .render import (
   Canvas )

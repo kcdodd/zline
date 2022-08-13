@@ -6,10 +6,13 @@ import sys
 
 from .color import (
   Color,
-  norm_rgb )
+  norm_rgb,
+  rgb_to_8bit )
 
 from .line import (
   LINES )
+
+from .border import BorderStyle
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @dataclass
@@ -37,23 +40,151 @@ class Tile:
     self.pos = pos
     self.shape = shape
     self.buf = np.zeros(self.shape, dtype = np.unicode_)
-    self.fg = 255*np.ones( self.shape + (3,), dtype = np.uint8 )
-    self.bg = np.zeros( self.shape + (3,), dtype = np.uint8 )
     self.lines = np.zeros( self.shape, dtype = np.uint16 )
     self.exterior = np.zeros( self.shape, dtype = np.uint16 )
+
+    self.fg = 255*np.ones( self.shape + (3,), dtype = np.uint8 )
+    # self.fg_num = np.ones( self.shape, dtype = np.uint32 )
+    self.bg = np.zeros( self.shape + (3,), dtype = np.uint8 )
 
   #-----------------------------------------------------------------------------
   def render(self):
     pass
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class TextBox(Tile):
+class Box(Tile):
+  #-----------------------------------------------------------------------------
+  def __init__(self,*,
+    content = None,
+    border = None,
+    **kwargs):
+
+    super().__init__(**kwargs)
+
+    if border is None:
+      border = BorderStyle()
+
+    if content is None:
+      content = list()
+
+    elif not isinstance(content, (tuple, list)):
+      content = [content]
+
+    self.content = content
+    self.border = border
+
+  #-----------------------------------------------------------------------------
+  def render(self):
+    self.buf[:] = '\0'
+    self.lines[:] = 0
+    self.exterior[:] = 0
+
+    h, w = self.shape
+
+    spc = self.border.spc()
+    h -= sum(spc[::2])
+    w -= sum(spc[1::2])
+
+    _fg = self.fg.astype(dtype = np.uint32)
+    _fg_num = np.ones( self.shape, dtype = np.uint32 )
+
+    for cell in self.content:
+      cell.render()
+
+      s = tuple(slice(o+i, o+i+d) for o,i,d in zip(spc[::3], cell.pos, cell.shape))
+
+      self.lines[s] &= cell.exterior
+      existing = self.lines[s] != 0
+
+      self.lines[s] |= cell.lines
+
+      fg = _fg[s]
+      fg_num = _fg_num[s]
+
+      interior = cell.exterior == 0
+      border = cell.lines != 0
+      mask = interior | border
+
+      mono = ~existing & mask
+      blend = existing & mask
+
+      fg[mono] = cell.fg[mono]
+      fg_num[mono] = 1
+
+      fg[blend] += cell.fg[blend]
+      fg_num[blend] += 1
+
+    self.fg[:] = np.round(_fg / _fg_num[:,:, np.newaxis])
+
+    for cell in self.content:
+
+      mask = (cell.buf != '\0')
+      s = tuple(slice(o+i, o+i+d) for o,i,d in zip(spc[::3], cell.pos, cell.shape))
+
+      for attr in ['buf', 'fg', 'bg']:
+        view = getattr(self, attr)[s]
+        _mask = mask
+        if view.ndim == 3:
+          _mask = _mask[:, :, np.newaxis]
+
+        view[...] = np.where(_mask, getattr(cell, attr), view)
+
+    #...........................................................................
+    b = self.border.interior()
+
+    if spc.top and spc.left:
+      self.lines[0,0] = b[0,0]
+
+    if spc.top:
+      self.lines[0,1:-1] = b[0,1]
+
+    if spc.top and spc.right:
+      self.lines[0,-1] = b[0,2]
+
+    if spc.left:
+      self.lines[1:-1, 0] = b[1,0]
+
+    if spc.right:
+      self.lines[1:-1, -1] = b[1,2]
+
+    if spc.bottom and spc.left:
+      self.lines[-1,0] = b[2,0]
+
+    if spc.bottom:
+      self.lines[-1,1:-1] = b[2,1]
+
+    if spc.bottom and spc.right:
+      self.lines[-1,-1] = b[2,2]
+
+    #...........................................................................
+    e = self.border.exterior()
+
+    self.exterior[0,0] = e[0,0]
+    self.exterior[0,1:-1] = e[0,1]
+    self.exterior[0,-1] = e[0,2]
+
+    self.exterior[1:-1, 0] = e[1,0]
+    self.exterior[1:-1, -1] = e[1,2]
+
+    self.exterior[-1,0] = e[2,0]
+    self.exterior[-1,1:-1] = e[2,1]
+    self.exterior[-1,-1] = e[2,2]
+
+    #...........................................................................
+
+    self.fg[:,0] = self.border.color.left
+    self.fg[:,-1] = self.border.color.right
+    self.fg[0,:] = self.border.color.top
+    self.fg[-1,:] = self.border.color.bottom
+
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class Text(Tile):
   #-----------------------------------------------------------------------------
   def __init__(self,*,
     text = None,
     wrapper = None,
     style = None,
-    border = None,
     **kwargs):
 
     super().__init__(**kwargs)
@@ -68,21 +199,15 @@ class TextBox(Tile):
     if style is None:
       style = TextStyle()
 
-    if border is None:
-      border = BorderStyle()
-
     self.text = text
     self.wrapper = wrapper
     self.style = style
-    self.border = border
 
   #-----------------------------------------------------------------------------
   def render(self):
-    h, w = self.shape
+    self.buf[:] = '\0'
 
-    spc = self.border.spc()
-    h -= sum(min(1, _h) for _h in spc[::2])
-    w -= sum(min(1, _w) for _w in spc[1::2])
+    h, w = self.shape
 
     self.wrapper.width = w
     self.wrapper.max_lines = h
@@ -99,53 +224,12 @@ class TextBox(Tile):
     else:
       text = text.reshape((0, 0))
 
-    i0 = spc[0]
-    j0 = spc[3]
-
     for i, l in enumerate(text):
 
       n = min(w, len(l))
-      _buf = self.buf[i0+i, j0:(j0+n)]
+      _buf = self.buf[i, :n]
       _l = l[:n]
 
       _buf[:] = _l
 
-    #...........................................................................
-    b = self.border.interior()
-
-    self.lines[:] = 0
-
-    self.lines[0,0] = b[0,0]
-    self.lines[0,1:-1] = b[0,1]
-    self.lines[0,-1] = b[0,2]
-
-    self.lines[1:-1, 0] = b[1,0]
-    self.lines[1:-1, -1] = b[1,2]
-
-    self.lines[-1,0] = b[2,0]
-    self.lines[-1,1:-1] = b[2,1]
-    self.lines[-1,-1] = b[2,2]
-
-    #...........................................................................
-    e = self.border.exterior()
-
-    self.exterior[:] = 0
-
-    self.exterior[0,0] = e[0,0]
-    self.exterior[0,1:-1] = e[0,1]
-    self.exterior[0,-1] = e[0,2]
-
-    self.exterior[1:-1, 0] = e[1,0]
-    self.exterior[1:-1, -1] = e[1,2]
-
-    self.exterior[-1,0] = e[2,0]
-    self.exterior[-1,1:-1] = e[2,1]
-    self.exterior[-1,-1] = e[2,2]
-
-    #...........................................................................
     self.fg[:] = self.style.color
-
-    self.fg[:,0] = self.border.color.left
-    self.fg[:,-1] = self.border.color.right
-    self.fg[0,:] = self.border.color.top
-    self.fg[-1,:] = self.border.color.bottom

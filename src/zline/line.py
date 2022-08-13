@@ -180,7 +180,8 @@ _ARCS = [
 
 LINES = np.zeros((2*4096,), dtype = np.unicode_)
 # LINES[:] = '�'
-LINES[:] = ' '
+# LINES[:] = ' '
+LINES[:] = '\0'
 
 for i, c in _LINES:
   LINES[i] = c

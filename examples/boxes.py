@@ -8,32 +8,37 @@ from zline import (
   TextStyle,
   TextWrapper,
   Canvas,
-  TextBox )
+  Text,
+  Box )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-with Canvas(shape=(20,20)) as app:
+with Canvas(shape=(20,20), alt = True) as app:
 
-  app.cells.append( TextBox(
+  app.content.append( Box(
     pos = (2, 2),
     shape = (8, 10),
-    text = "hello",
-    style = TextStyle(
-      color = '#ffcf00'),
+    content = Text(
+      shape = (6, 8),
+      text = "hello",
+      style = TextStyle(
+        color = '#ffcf00')),
     border = BorderStyle(
       color = '#ff4500',
       weight = Weight.H ) ) )
 
-  app.cells.append( TextBox(
+  app.content.append( Box(
     pos = (5, 6),
     shape = (8, 8),
-    text = "world",
-    style = TextStyle(
-      color = '#00c9ff'),
+    content = Text(
+      shape = (6, 6),
+      text = "world",
+      style = TextStyle(
+        color = '#00c9ff') ),
     border = BorderStyle(
       color = ['#3300ff', '#f200ff', '#ebff00', '#00ff85'],
       weight = [Weight.D, Weight.S, Weight.D, Weight.S] ) ) )
 
-  app.cells.append( TextBox(
+  app.content.append( Box(
     pos = (7, 4),
     shape = (5, 5),
     border = BorderStyle(
@@ -44,6 +49,7 @@ with Canvas(shape=(20,20)) as app:
 
   # print(app.buf)
   app.render()
+  app.flush()
   x = input('')
 
 # print("\u001b[0m")

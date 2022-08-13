@@ -15,86 +15,46 @@ from .color import (
 from .line import (
   LINES )
 
+from .tile import Box
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class Canvas:
+class Canvas(Box):
   #-----------------------------------------------------------------------------
   def __init__(self,
     shape,
-    fp = sys.stdout ):
+    fp = sys.stdout,
+    alt = True ):
 
-    self.shape = shape
-    self.buf = np.full(self.shape, dtype = np.unicode_, fill_value = ' ')
-    self.lines = np.zeros( self.shape, dtype = np.uint16 )
+    super().__init__(shape = shape)
 
-    self.fg = np.ones( self.shape + (3,), dtype = np.uint32 )
-    self.fg_num = np.ones( self.shape, dtype = np.uint32 )
-
-    self.bg = np.zeros( self.shape + (3,), dtype = np.uint32 )
-
-    # self.buf[...] = ' '
     self.fp = fp
-    self.cells = list()
+    self.alt = alt
 
   #-----------------------------------------------------------------------------
   def __enter__(self):
-    self.fp.write('\u001b[?1049h' + '\u001b[?25l')
+    if self.alt:
+      self.fp.write('\u001b[?1049h' + '\u001b[?25l')
+
     return self
 
   #-----------------------------------------------------------------------------
   def __exit__(self, type, value, traceback):
-    self.fp.write('\u001b[?25h' + '\u001b[?1049l')
+    if self.alt:
+      self.fp.write('\u001b[?25h' + '\u001b[?1049l')
+
     return False
 
   #-----------------------------------------------------------------------------
   def render(self):
-    self.lines[:] = 0
+    super().render()
 
-    for cell in self.cells:
-      cell.render()
-      s = tuple(slice(i, i+d) for i,d in zip(cell.pos, cell.shape))
+    buf = LINES[self.lines]
+    mask = (buf != '\0')
 
-      self.lines[s] &= cell.exterior
-      existing = self.lines[s] != 0
+    self.buf[:] = np.where(mask, buf, self.buf)
 
-      self.lines[s] |= cell.lines
-
-      fg = self.fg[s]
-      fg_num = self.fg_num[s]
-
-      interior = cell.exterior == 0
-      border = cell.lines != 0
-      mask = interior | border
-
-      mono = ~existing & mask
-      blend = existing & mask
-
-      fg[mono] = cell.fg[mono]
-      fg_num[mono] = 1
-
-      fg[blend] += cell.fg[blend]
-      fg_num[blend] += 1
-
-    self.fg[:] = np.round(self.fg / self.fg_num[:,:, np.newaxis])
-    self.buf[:] = LINES[self.lines]
-    # print(self.lines)
-    # print(self.fg)
-    # print(self.buf)
-
-    for cell in self.cells:
-      mask = (cell.buf != '\0')
-      s = tuple(slice(i, i+d) for i,d in zip(cell.pos, cell.shape))
-
-      for attr in ['buf', 'fg', 'bg']:
-        view = getattr(self, attr)[s]
-        _mask = mask
-        if view.ndim == 3:
-          _mask = _mask[:, :, np.newaxis]
-
-        view[...] = np.where(_mask, getattr(cell, attr), view)
-
-    # print(rgb_to_standard(self.fg))
-    # print(self.buf)
-    self.flush()
+    mask = (self.buf == '\0')
+    self.buf[:] = np.where(mask, ' ', self.buf)
 
   #-----------------------------------------------------------------------------
   def flush(self):

@@ -46,9 +46,9 @@ class BorderStyle:
 
   #-----------------------------------------------------------------------------
   def spc(self):
-    return [
+    return BorderSpec(*(
       min(1, w.value) + m + p
-      for w, m, p in zip(self.weight, self.margin, self.padding) ]
+      for w, m, p in zip(self.weight, self.margin, self.padding) ))
 
   #-----------------------------------------------------------------------------
   def interior(self):
