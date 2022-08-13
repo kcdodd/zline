@@ -14,20 +14,23 @@ with Canvas(shape=(20,20)) as app:
     shape = (8, 10),
     text = "hello",
     ctext = '#ff0',
-    cborder = '#f00' ) )
+    cborder = '#f00',
+    nborder = 1 ) )
 
   app.cells.append( Box(
     pos = (5, 6),
     shape = (8, 8),
     text = "world",
     ctext = '#0ff',
-    cborder = '#00f' ) )
+    cborder = '#00f',
+    nborder = 2 ) )
 
   app.cells.append( Box(
     pos = (7, 4),
     shape = (5, 5),
     jborder = True,
-    cborder = '#0f0' ) )
+    cborder = '#0f0',
+    rborder = True ) )
 
   # print(app.buf)
   app.render()

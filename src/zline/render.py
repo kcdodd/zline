@@ -10,6 +10,8 @@ from .color import (
 
 from .line import (
   L, R, T, B,
+  Lh, Rh, Th, Bh,
+  Ld, Rd, Td, Bd,
   LINES )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -24,8 +26,8 @@ class Tile:
     self.buf = np.zeros(self.shape, dtype = np.unicode_)
     self.fg = 255*np.ones( self.shape + (3,), dtype = np.uint8 )
     self.bg = np.zeros( self.shape + (3,), dtype = np.uint8 )
-    self.lines = np.zeros( self.shape, dtype = np.uint8 )
-    self.exterior = np.zeros( self.shape, dtype = np.uint8 )
+    self.lines = np.zeros( self.shape, dtype = np.uint16 )
+    self.exterior = np.zeros( self.shape, dtype = np.uint16 )
 
   #-----------------------------------------------------------------------------
   def render(self):
@@ -38,6 +40,8 @@ class Box(Tile):
     text = '',
     ctext = '#fff',
     cborder = '#fff',
+    nborder = 0,
+    rborder = False,
     jborder = False,
     **kwargs):
 
@@ -47,6 +51,8 @@ class Box(Tile):
     # print(self.text)
     self.ctext = norm_rgb(ctext)
     self.cborder = norm_rgb(cborder)
+    self.nborder = nborder
+    self.rborder = rborder
     self.jborder = jborder
 
   #-----------------------------------------------------------------------------
@@ -67,22 +73,34 @@ class Box(Tile):
 
       _buf[:] = _l
 
+    if self.nborder == 0:
+      _L, _R, _T, _B = L, R, T, B
+    elif self.nborder == 1:
+      _L, _R, _T, _B = Lh, Rh, Th, Bh
+    else:
+      _L, _R, _T, _B = Ld, Rd, Td, Bd
+
+    if self.rborder:
+      _L += 4096
+      _R += 4096
+      _T += 4096
+      _B += 4096
 
     self.lines[:] = 0
-    self.lines[0,0] = R|B # '╭'
-    self.lines[0,-1] = L|B # '╮'
-    self.lines[-1,0] = T|R # '╰'
-    self.lines[-1,-1] = L|T# '╯'
-    self.lines[[0, -1],1:-1] = L|R # '─'
-    self.lines[1:-1,[0, -1]] = T|B # '│'
+    self.lines[0,0] = _R|_B # '╭'
+    self.lines[0,-1] = _L|_B # '╮'
+    self.lines[-1,0] = _T|_R # '╰'
+    self.lines[-1,-1] = _L|_T# '╯'
+    self.lines[[0, -1],1:-1] = _L|_R # '─'
+    self.lines[1:-1,[0, -1]] = _T|_B # '│'
 
     self.exterior[:] = 0
 
     if self.jborder:
-      self.exterior[:,0] = L|T|B
-      self.exterior[:,-1] = R|T|B
-      self.exterior[0,:] |= T|L|R
-      self.exterior[-1,:] |= B|L|R
+      self.exterior[:,0] = Ld|Td|Bd
+      self.exterior[:,-1] = Rd|Td|Bd
+      self.exterior[0,:] |= Td|Ld|Rd
+      self.exterior[-1,:] |= Bd|Ld|Rd
 
     self.fg[:] = self.ctext
     self.fg[:,[0, -1]] = self.cborder
@@ -97,7 +115,7 @@ class Canvas:
 
     self.shape = shape
     self.buf = np.full(self.shape, dtype = np.unicode_, fill_value = ' ')
-    self.lines = np.zeros( self.shape, dtype = np.uint8 )
+    self.lines = np.zeros( self.shape, dtype = np.uint16 )
 
     self.fg = np.ones( self.shape + (3,), dtype = np.uint32 )
     self.fg_num = np.ones( self.shape, dtype = np.uint32 )
