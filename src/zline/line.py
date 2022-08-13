@@ -1,4 +1,12 @@
 import numpy as np
+from enum import Enum
+
+class Weight(Enum):
+  N = 0
+  S = 1
+  H = 2
+  D = 3
+
 
 # The indexing for box drawing character lookup is constructed by forming
 # connections between the four sides of a character cell.
@@ -8,7 +16,7 @@ import numpy as np
 # │     │
 # └──B──┘
 # Connections are formed by taking the bit-wise 'or' of the elemental constants
-# L, R, T, B.
+# Ll, Rl, Tl, B.
 # Heavy and double lines are added using a 3-bit field for each of the four
 # constants, resulting in a total of 12bits per character field to define the
 # connections and the weight of the formed line(s).
@@ -22,145 +30,153 @@ import numpy as np
 # constants defined using 4x 'octal' (3-bit) number
 # h: heavy, d: double
 
-# left
-L = 0o1000
-Lh = 0o3000
-Ld = 0o7000
+# top
+Tn = 0o0000
+Tl = 0o1000
+Th = 0o3000
+Td = 0o7000
+T = [Tn, Tl, Th, Td]
 
 # right
-R = 0o0001
-Rh = 0o0003
-Rd = 0o0007
-
-# top
-T = 0o0100
-Th = 0o0300
-Td = 0o0700
+Rn = 0o0000
+Rl = 0o0100
+Rh = 0o0300
+Rd = 0o0700
+R = [Rn, Rl, Rh, Rd]
 
 # bottom
-B = 0o0010
+Bn = 0o0000
+Bl = 0o0010
 Bh = 0o0030
 Bd = 0o0070
+B = [Bn, Bl, Bh, Bd]
+
+# left
+Ln = 0o0000
+Ll = 0o0001
+Lh = 0o0003
+Ld = 0o0007
+L = [Ln, Ll, Lh, Ld]
 
 # arc
 A = 0o10000
 
 _LINES = [
-  (L,  '╴'),
-  (T,  '╵'),
-  (R,  '╶'),
-  (B,  '╷'),
+  (Ll, '╴'),
+  (Tl, '╵'),
+  (Rl, '╶'),
+  (Bl, '╷'),
   (Lh, '╸'),
   (Th, '╹'),
   (Rh, '╺'),
   (Bh, '╻'),
-  (L|R,   '─'),
+  (Ll|Rl, '─'),
   (Lh|Rh, '━'),
-  (T|B,   '│'),
+  (Tl|Bl, '│'),
   (Th|Bh, '┃'),
-  (L|Rh,  '╼'),
-  (T|Bh,  '╽'),
-  (Lh|R,  '╾'),
-  (Th|B,  '╿'),
-  (R|B,   '┌'),
-  (Rh|B,  '┍'),
-  (R|Bh,  '┎'),
+  (Ll|Rh, '╼'),
+  (Tl|Bh, '╽'),
+  (Lh|Rl, '╾'),
+  (Th|Bl, '╿'),
+  (Rl|Bl, '┌'),
+  (Rh|Bl, '┍'),
+  (Rl|Bh, '┎'),
   (Rh|Bh, '┏'),
-  (L|B,   '┐'),
-  (Lh|B,  '┑'),
-  (L|Bh,  '┒'),
+  (Ll|Bl, '┐'),
+  (Lh|Bl, '┑'),
+  (Ll|Bh, '┒'),
   (Lh|Bh, '┓'),
-  (T|R,   '└'),
-  (T|Rh,  '┕'),
-  (Th|R,  '┖'),
+  (Tl|Rl, '└'),
+  (Tl|Rh, '┕'),
+  (Th|Rl, '┖'),
   (Th|Rh, '┗'),
-  (L|T,   '┘'),
-  (Lh|T,  '┙'),
-  (L|Th,  '┚'),
+  (Ll|Tl, '┘'),
+  (Lh|Tl, '┙'),
+  (Ll|Th, '┚'),
   (Lh|Th, '┛'),
-  (T|R|B,    '├'),
-  (T|Rh|B,   '┝'),
-  (Th|R|B,   '┞'),
-  (T|R|Bh,   '┟'),
-  (Th|R|Bh,  '┠'),
-  (Th|Rh|B,  '┡'),
-  (T|Rh|Bh,  '┢'),
+  (Tl|Rl|Bl, '├'),
+  (Tl|Rh|Bl, '┝'),
+  (Th|Rl|Bl, '┞'),
+  (Tl|Rl|Bh, '┟'),
+  (Th|Rl|Bh, '┠'),
+  (Th|Rh|Bl, '┡'),
+  (Tl|Rh|Bh, '┢'),
   (Th|Rh|Bh, '┣'),
-  (T|L|B,    '┤'),
-  (T|Lh|B,   '┥'),
-  (Th|L|B,   '┦'),
-  (T|L|Bh,   '┧'),
-  (Th|L|Bh,  '┨'),
-  (Th|Lh|B,  '┩'),
-  (T|Lh|Bh,  '┪'),
+  (Tl|Ll|Bl, '┤'),
+  (Tl|Lh|Bl, '┥'),
+  (Th|Ll|Bl, '┦'),
+  (Tl|Ll|Bh, '┧'),
+  (Th|Ll|Bh, '┨'),
+  (Th|Lh|Bl, '┩'),
+  (Tl|Lh|Bh, '┪'),
   (Th|Lh|Bh, '┫'),
-  (L|B|R,    '┬'),
-  (Lh|B|R,   '┭'),
-  (L|B|Rh,   '┮'),
-  (Lh|B|Rh,  '┯'),
-  (L|Bh|R,   '┰'),
-  (Lh|Bh|R,  '┱'),
-  (L|Bh|Rh,  '┲'),
+  (Ll|Bl|Rl, '┬'),
+  (Lh|Bl|Rl, '┭'),
+  (Ll|Bl|Rh, '┮'),
+  (Lh|Bl|Rh, '┯'),
+  (Ll|Bh|Rl, '┰'),
+  (Lh|Bh|Rl, '┱'),
+  (Ll|Bh|Rh, '┲'),
   (Lh|Bh|Rh, '┳'),
-  (L|T|R,    '┴'),
-  (Lh|T|R,   '┵'),
-  (L|T|Rh,   '┶'),
-  (Lh|T|Rh,  '┷'),
-  (L|Th|R,   '┸'),
-  (Lh|Th|R,  '┹'),
-  (L|Th|Rh,  '┺'),
+  (Ll|Tl|Rl, '┴'),
+  (Lh|Tl|Rl, '┵'),
+  (Ll|Tl|Rh, '┶'),
+  (Lh|Tl|Rh, '┷'),
+  (Ll|Th|Rl, '┸'),
+  (Lh|Th|Rl, '┹'),
+  (Ll|Th|Rh, '┺'),
   (Lh|Th|Rh, '┻'),
-  (L|T|R|B,     '┼'),
-  (Lh|T|R|B,    '┽'),
-  (L|T|Rh|B,    '┾'),
-  (Lh|T|Rh|B,   '┿'),
-  (L|Th|R|B,    '╀'),
-  (L|T|R|Bh,    '╁'),
-  (L|Th|R|Bh,   '╂'),
-  (Lh|Th|R|B,   '╃'),
-  (L|Th|Rh|B,   '╄'),
-  (Lh|T|R|Bh,   '╅'),
-  (L|T|Rh|Bh,   '╆'),
-  (Lh|Th|Rh|B,  '╇'),
-  (Lh|T|Rh|Bh,  '╈'),
-  (Lh|Th|R|Bh,  '╉'),
-  (L|Th|Rh|Bh,  '╊'),
+  (Ll|Tl|Rl|Bl, '┼'),
+  (Lh|Tl|Rl|Bl, '┽'),
+  (Ll|Tl|Rh|Bl, '┾'),
+  (Lh|Tl|Rh|Bl, '┿'),
+  (Ll|Th|Rl|Bl, '╀'),
+  (Ll|Tl|Rl|Bh, '╁'),
+  (Ll|Th|Rl|Bh, '╂'),
+  (Lh|Th|Rl|Bl, '╃'),
+  (Ll|Th|Rh|Bl, '╄'),
+  (Lh|Tl|Rl|Bh, '╅'),
+  (Ll|Tl|Rh|Bh, '╆'),
+  (Lh|Th|Rh|Bl, '╇'),
+  (Lh|Tl|Rh|Bh, '╈'),
+  (Lh|Th|Rl|Bh, '╉'),
+  (Ll|Th|Rh|Bh, '╊'),
   (Lh|Th|Rh|Bh, '╋'),
   (Ld|Rd, '═'),
   (Td|Bd, '║'),
-  (Rd|B,  '╒'),
-  (R|Bd,  '╓'),
+  (Rd|Bl, '╒'),
+  (Rl|Bd, '╓'),
   (Rd|Bd, '╔'),
-  (Ld|B,  '╕'),
-  (L|Bd,  '╖'),
+  (Ld|Bl, '╕'),
+  (Ll|Bd, '╖'),
   (Ld|Bd, '╗'),
-  (T|Rd,  '╘'),
-  (Td|R,  '╙'),
+  (Tl|Rd, '╘'),
+  (Td|Rl, '╙'),
   (Td|Rd, '╚'),
-  (Ld|T,  '╛'),
-  (L|Td,  '╜'),
+  (Ld|Tl, '╛'),
+  (Ll|Td, '╜'),
   (Ld|Td, '╝'),
-  (T|Rd|B,   '╞'),
-  (Td|R|Bd,  '╟'),
+  (Tl|Rd|Bl, '╞'),
+  (Td|Rl|Bd, '╟'),
   (Td|Rd|Bd, '╠'),
-  (Ld|T|B,   '╡'),
-  (L|Td|Bd,  '╢'),
+  (Ld|Tl|Bl, '╡'),
+  (Ll|Td|Bd, '╢'),
   (Ld|Td|Bd, '╣'),
-  (Ld|Rd|B,  '╤'),
-  (L|R|Bd,   '╥'),
+  (Ld|Rd|Bl, '╤'),
+  (Ll|Rl|Bd, '╥'),
   (Ld|Rd|Bd, '╦'),
-  (Ld|T|Rd,  '╧'),
-  (L|Td|R,   '╨'),
+  (Ld|Tl|Rd, '╧'),
+  (Ll|Td|Rl, '╨'),
   (Ld|Td|Rd, '╩'),
-  (Ld|T|Rd|B,   '╪'),
-  (L|Td|R|Bd,   '╫'),
+  (Ld|Tl|Rd|Bl, '╪'),
+  (Ll|Td|Rl|Bd, '╫'),
   (Ld|Td|Rd|Bd, '╬') ]
 
 _ARCS = [
-  (A|R|B, '╭'),
-  (A|L|B, '╮'),
-  (A|L|T, '╯'),
-  (A|T|R, '╰') ]
+  (A|Rl|Bl, '╭'),
+  (A|Ll|Bl, '╮'),
+  (A|Ll|Tl, '╯'),
+  (A|Tl|Rl, '╰') ]
 
 LINES = np.zeros((2*4096,), dtype = np.unicode_)
 # LINES[:] = '�'
@@ -178,21 +194,21 @@ for i, c in _ARCS:
 
 # LINES[L]     = '╴'
 # LINES[R]     = '╶'
-# LINES[L|R]   = '─'
+# LINES[Ll|R]   = '─'
 #
 # LINES[T]     = '╵'
 # LINES[B]     = '╷'
-# LINES[T|B]   = '│'
+# LINES[Tl|B]   = '│'
 #
-# LINES[R|B] = '╭'
-# LINES[L|B] = '╮'
-# LINES[T|R] = '╰'
-# LINES[T|L] = '╯'
+# LINES[Rl|B] = '╭'
+# LINES[Ll|B] = '╮'
+# LINES[Tl|R] = '╰'
+# LINES[Tl|L] = '╯'
 #
-# LINES[L|T|R]  = '┴'
+# LINES[Ll|Tl|R]  = '┴'
 #
-# LINES[T|R|B] = '├'
-# LINES[L|R|B] = '┬'
-# LINES[L|T|B] = '┤'
+# LINES[Tl|Rl|B] = '├'
+# LINES[Ll|Rl|B] = '┬'
+# LINES[Ll|Tl|B] = '┤'
 #
-# LINES[L|R|T|B] = '┼'
+# LINES[Ll|Rl|Tl|B] = '┼'

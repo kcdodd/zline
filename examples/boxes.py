@@ -2,35 +2,45 @@ import sys
 import numpy as np
 from colorsys import rgb_to_hls
 
-from zline.render import (
+from zline import (
+  Weight,
+  BorderStyle,
+  TextStyle,
+  TextWrapper,
   Canvas,
-  Box )
+  TextBox )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 with Canvas(shape=(20,20)) as app:
 
-  app.cells.append( Box(
+  app.cells.append( TextBox(
     pos = (2, 2),
     shape = (8, 10),
     text = "hello",
-    ctext = '#ff0',
-    cborder = '#f00',
-    nborder = 1 ) )
+    style = TextStyle(
+      color = '#ffcf00'),
+    border = BorderStyle(
+      color = '#ff4500',
+      weight = Weight.H ) ) )
 
-  app.cells.append( Box(
+  app.cells.append( TextBox(
     pos = (5, 6),
     shape = (8, 8),
     text = "world",
-    ctext = '#0ff',
-    cborder = '#00f',
-    nborder = 2 ) )
+    style = TextStyle(
+      color = '#00c9ff'),
+    border = BorderStyle(
+      color = ['#3300ff', '#f200ff', '#ebff00', '#00ff85'],
+      weight = [Weight.D, Weight.S, Weight.D, Weight.S] ) ) )
 
-  app.cells.append( Box(
+  app.cells.append( TextBox(
     pos = (7, 4),
     shape = (5, 5),
-    jborder = True,
-    cborder = '#0f0',
-    rborder = True ) )
+    border = BorderStyle(
+      color = '#00ff8c',
+      weight = Weight.S,
+      rounded = True,
+      intersect = True ) ) )
 
   # print(app.buf)
   app.render()

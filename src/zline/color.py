@@ -1,5 +1,10 @@
 import numpy as np
 from colorsys import rgb_to_hls
+from collections import namedtuple
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Color = namedtuple('Color', [
+  'r', 'g', 'b' ])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def _rgb_ls(rgb):
@@ -193,6 +198,6 @@ def norm_rgb(rgb):
   if isinstance(rgb, str):
     return hex_to_rgb(rgb)
 
-  rgb = (max(0, min(255, int(c))) for c in rgb)
-  assert len(rgb) == 3
+  rgb = Color(*(max(0, min(255, int(c))) for c in rgb))
+
   return rgb

@@ -1,4 +1,7 @@
 import numpy as np
+from textwrap import TextWrapper
+from collections import namedtuple
+from dataclasses import dataclass, field, asdict, fields
 import sys
 from .ansi import (
   goto,
@@ -6,105 +9,11 @@ from .ansi import (
   FG )
 
 from .color import (
+  Color,
   norm_rgb )
 
 from .line import (
-  L, R, T, B,
-  Lh, Rh, Th, Bh,
-  Ld, Rd, Td, Bd,
   LINES )
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class Tile:
-  #-----------------------------------------------------------------------------
-  def __init__(self,*,
-    pos,
-    shape ):
-
-    self.pos = pos
-    self.shape = shape
-    self.buf = np.zeros(self.shape, dtype = np.unicode_)
-    self.fg = 255*np.ones( self.shape + (3,), dtype = np.uint8 )
-    self.bg = np.zeros( self.shape + (3,), dtype = np.uint8 )
-    self.lines = np.zeros( self.shape, dtype = np.uint16 )
-    self.exterior = np.zeros( self.shape, dtype = np.uint16 )
-
-  #-----------------------------------------------------------------------------
-  def render(self):
-    pass
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class Box(Tile):
-  #-----------------------------------------------------------------------------
-  def __init__(self,*,
-    text = '',
-    ctext = '#fff',
-    cborder = '#fff',
-    nborder = 0,
-    rborder = False,
-    jborder = False,
-    **kwargs):
-
-    super().__init__(**kwargs)
-
-    self.text = text
-    # print(self.text)
-    self.ctext = norm_rgb(ctext)
-    self.cborder = norm_rgb(cborder)
-    self.nborder = nborder
-    self.rborder = rborder
-    self.jborder = jborder
-
-  #-----------------------------------------------------------------------------
-  def render(self):
-    h, w = self.shape
-
-    text = [
-      np.array(list(l), dtype = np.unicode_)
-      for l in (self.text.splitlines() if self.text else [''])]
-
-    for i, l in enumerate(text):
-      if i >= h-2:
-        break
-
-      n = min(w-2, len(l))
-      _buf = self.buf[i+1, 1:(n+1)]
-      _l = l[:n]
-
-      _buf[:] = _l
-
-    if self.nborder == 0:
-      _L, _R, _T, _B = L, R, T, B
-    elif self.nborder == 1:
-      _L, _R, _T, _B = Lh, Rh, Th, Bh
-    else:
-      _L, _R, _T, _B = Ld, Rd, Td, Bd
-
-    if self.rborder:
-      _L += 4096
-      _R += 4096
-      _T += 4096
-      _B += 4096
-
-    self.lines[:] = 0
-    self.lines[0,0] = _R|_B # '╭'
-    self.lines[0,-1] = _L|_B # '╮'
-    self.lines[-1,0] = _T|_R # '╰'
-    self.lines[-1,-1] = _L|_T# '╯'
-    self.lines[[0, -1],1:-1] = _L|_R # '─'
-    self.lines[1:-1,[0, -1]] = _T|_B # '│'
-
-    self.exterior[:] = 0
-
-    if self.jborder:
-      self.exterior[:,0] = Ld|Td|Bd
-      self.exterior[:,-1] = Rd|Td|Bd
-      self.exterior[0,:] |= Td|Ld|Rd
-      self.exterior[-1,:] |= Bd|Ld|Rd
-
-    self.fg[:] = self.ctext
-    self.fg[:,[0, -1]] = self.cborder
-    self.fg[[0, -1],:] = self.cborder
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Canvas:
