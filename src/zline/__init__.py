@@ -10,6 +10,10 @@ from .text import (
   TextWrapper,
   Text )
 
+from .plot import (
+  Plot,
+  PlotStyle )
+
 from .box import (
   Box )
 

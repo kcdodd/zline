@@ -6,7 +6,9 @@ import sys
 from .ansi import (
   goto,
   move,
-  FG )
+  reset_style,
+  FG,
+  BG )
 
 from .color import (
   Color,
@@ -70,8 +72,12 @@ class Canvas(Box):
       cr = '\n'
 
     fg_color = FG[8]
+    bg_color = BG[8]
+    reset = reset_style()
 
     for i in range(self.shape[0]):
+      buf = self.buf[i]
+
       mask[1:] = np.logical_or.reduce(
         self.fg[i, 1:] != self.fg[i, :-1],
         axis = 1 )
@@ -79,6 +85,13 @@ class Canvas(Box):
       fg = np.chararray(row_shape, itemsize = 20, unicode = True)
       fg[mask] = fg_color(self.fg[i, mask])
 
-      row = [_fg+t for _fg, t in zip(fg, self.buf[i]) ]
+      mask[1:] = np.logical_or.reduce(
+        self.bg[i, 1:] != self.bg[i, :-1],
+        axis = 1 )
+
+      bg = np.chararray(row_shape, itemsize = 20, unicode = True)
+      bg[mask] = bg_color(self.bg[i, mask], reset_rgb = None)
+
+      row = [_fg+_bg+t for _fg, _bg, t in zip(fg, bg, buf) ]
       # print(row)
-      self.fp.write(''.join(row) + cr)
+      self.fp.write(''.join(row) + reset + cr)

@@ -1,13 +1,14 @@
 import numpy as np
 from enum import Enum
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Weight(Enum):
   N = 0
   S = 1
   H = 2
   D = 3
 
-
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # The indexing for box drawing character lookup is constructed by forming
 # connections between the four sides of a character cell.
 # ┌--T──┐
@@ -193,23 +194,60 @@ LINES[4096:] = LINES[:4096]
 for i, c in _ARCS:
   LINES[i] = c
 
-# LINES[L]     = '╴'
-# LINES[R]     = '╶'
-# LINES[Ll|R]   = '─'
-#
-# LINES[T]     = '╵'
-# LINES[B]     = '╷'
-# LINES[Tl|B]   = '│'
-#
-# LINES[Rl|B] = '╭'
-# LINES[Ll|B] = '╮'
-# LINES[Tl|R] = '╰'
-# LINES[Tl|L] = '╯'
-#
-# LINES[Ll|Tl|R]  = '┴'
-#
-# LINES[Tl|Rl|B] = '├'
-# LINES[Ll|Rl|B] = '┬'
-# LINES[Ll|Tl|B] = '┤'
-#
-# LINES[Ll|Rl|Tl|B] = '┼'
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+BLOCKS = [
+  '▀',
+  '▁',
+  '▂',
+  '▃',
+  '▄',
+  '▅',
+  '▆',
+  '▇',
+  '█',
+  '▉',
+  '▊',
+  '▋',
+  '▌',
+  '▍',
+  '▎',
+  '▏',
+  '▐',
+  '░',
+  '▒',
+  '▓',
+  '▔',
+  '▕', ]
+
+
+Qa = 0b0001
+Qb = 0b0010
+Qc = 0b0100
+Qd = 0b1000
+
+_QUADS = [
+  (Qa, '▘'),
+  (Qb, '▝'),
+  (Qc, '▗'),
+  (Qd, '▖'),
+  (Qa|Qb, '▀'),
+  (Qc|Qb, '▐'),
+  (Qc|Qd, '▄'),
+  (Qa|Qd, '▌'),
+  (Qa|Qc, '▚'),
+  (Qd|Qb, '▞'),
+  (Qa|Qb|Qc, '▜'),
+  (Qd|Qb|Qc, '▟'),
+  (Qa|Qd|Qc, '▙'),
+  (Qa|Qb|Qd, '▛'),
+  (Qa|Qb|Qc|Qd, '█') ]
+
+QUADS = np.zeros((16,), dtype = np.unicode_)
+QUADS[0] = ' '
+
+SQUADS = np.zeros((16,), dtype = np.unicode_)
+SQUADS[0] = ' '
+
+for j, (i, c) in enumerate(_QUADS):
+  SQUADS[j] = c
+  QUADS[i] = c
