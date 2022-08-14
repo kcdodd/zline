@@ -15,7 +15,7 @@ from .color import (
 from .line import (
   LINES )
 
-from .tile import Box
+from .box import Box
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Canvas(Box):
@@ -61,10 +61,13 @@ class Canvas(Box):
     row_shape = self.buf.shape[-1:]
     mask = np.ones(row_shape, dtype = bool)
 
-    self.fp.write('\u001b[2j')
+    if self.alt:
+      self.fp.write('\u001b[2j')
+      self.fp.write(goto(1,1))
+      cr = move(-1, -self.shape[1])
 
-    self.fp.write(goto(0,0))
-    cr = move(-1, -self.shape[1])
+    else:
+      cr = '\n'
 
     fg_color = FG[8]
 

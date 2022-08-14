@@ -3,10 +3,15 @@ from .border import (
   BorderStyle )
 
 from .tile import (
+  Tile )
+
+from .text import (
   TextStyle,
   TextWrapper,
-  Box,
   Text )
+
+from .box import (
+  Box )
 
 from .render import (
   Canvas )

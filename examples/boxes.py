@@ -12,14 +12,13 @@ from zline import (
   Box )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-with Canvas(shape=(20,20), alt = True) as app:
+with Canvas(shape=(20,20), alt = False) as app:
 
   app.content.append( Box(
     pos = (2, 2),
     shape = (8, 10),
     content = Text(
-      shape = (6, 8),
-      text = "hello",
+      text = "hello\n\nand some other text",
       style = TextStyle(
         color = '#ffcf00')),
     border = BorderStyle(
@@ -30,7 +29,6 @@ with Canvas(shape=(20,20), alt = True) as app:
     pos = (5, 6),
     shape = (8, 8),
     content = Text(
-      shape = (6, 6),
       text = "world",
       style = TextStyle(
         color = '#00c9ff') ),
@@ -48,9 +46,10 @@ with Canvas(shape=(20,20), alt = True) as app:
       intersect = True ) ) )
 
   # print(app.buf)
+  app.set_shape(app.min_shape())
   app.render()
   app.flush()
-  x = input('')
+  # input('')
 
 # print("\u001b[0m")
 #
