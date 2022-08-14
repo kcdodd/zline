@@ -157,31 +157,34 @@ class Box(Tile):
         view[...] = np.where(_mask, getattr(cell, attr), view)
 
     #...........................................................................
-    b = self.border.interior()
+    c = self.border.interior()
 
-    if spc.top and spc.left:
-      self.lines[0,0] = b[0,0]
+    b = self.border.borders()
+    m = self.border.margin
 
-    if spc.top:
-      self.lines[0,1:-1] = b[0,1]
+    if b.top and b.left:
+      self.lines[m.top,m.left] = c[0,0]
 
-    if spc.top and spc.right:
-      self.lines[0,-1] = b[0,2]
+    if b.top:
+      self.lines[m.top, 1+m.left:-1-m.right] = c[0,1]
 
-    if spc.left:
-      self.lines[1:-1, 0] = b[1,0]
+    if b.top and b.right:
+      self.lines[m.top, -1-m.right] = c[0,2]
 
-    if spc.right:
-      self.lines[1:-1, -1] = b[1,2]
+    if b.left:
+      self.lines[1+m.top:-1-m.bottom, m.left] = c[1,0]
 
-    if spc.bottom and spc.left:
-      self.lines[-1,0] = b[2,0]
+    if b.right:
+      self.lines[1+m.top:-1-m.bottom, -1-m.right] = c[1,2]
 
-    if spc.bottom:
-      self.lines[-1,1:-1] = b[2,1]
+    if b.bottom and b.left:
+      self.lines[-1-m.bottom, m.left] = c[2,0]
 
-    if spc.bottom and spc.right:
-      self.lines[-1,-1] = b[2,2]
+    if b.bottom:
+      self.lines[-1-m.bottom, 1+m.top:-1-m.right] = c[2,1]
+
+    if b.bottom and b.right:
+      self.lines[-1-m.bottom, -1-m.right] = c[2,2]
 
     #...........................................................................
     e = self.border.exterior()
@@ -198,8 +201,14 @@ class Box(Tile):
     self.exterior[-1,-1] = e[2,2]
 
     #...........................................................................
+    if b.left:
+      self.fg[:,0] = self.border.color.left
 
-    self.fg[:,0] = self.border.color.left
-    self.fg[:,-1] = self.border.color.right
-    self.fg[0,:] = self.border.color.top
-    self.fg[-1,:] = self.border.color.bottom
+    if b.right:
+      self.fg[:,-1] = self.border.color.right
+
+    if b.top:
+      self.fg[0,:] = self.border.color.top
+
+    if b.bottom:
+      self.fg[-1,:] = self.border.color.bottom

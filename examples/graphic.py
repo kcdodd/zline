@@ -12,15 +12,31 @@ from zline import (
   TextStyle,
   TextWrapper,
   Canvas,
-  Plot )
+  Graphic,
+  Plot,
+  GraphicStyle )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-with Canvas(shape=(20,80), alt = False) as app:
+with Canvas(shape=(40,80), alt = False) as app:
   x = np.linspace(0, 4*np.pi, 100)
   y = np.sin(x)
 
   app.content.append( Plot(
+    shape = (20, 80),
     xy = (x, y) ))
+
+  x,y = np.meshgrid(
+    np.linspace(0, 4*np.pi, 100),
+    np.linspace(0, 4*np.pi, 100) )
+
+  z = np.sin(x)**2 * np.cos(y)**2
+
+  app.content.append( Graphic(
+    pos = (20,0),
+    shape = (20, 80),
+    arr = z,
+    style = GraphicStyle(
+      cmap = 'jet' )))
 
   app.set_shape(app.min_shape())
   app.render()

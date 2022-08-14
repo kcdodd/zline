@@ -15,31 +15,31 @@ from .line import (
   QUADS,
   Qa, Qb, Qc, Qd )
 
+from .graphic import Graphic, GraphicStyle
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @dataclass
-class PlotStyle:
+class PlotStyle(GraphicStyle):
   color : tuple[int] = (255, 255, 255)
 
   #-----------------------------------------------------------------------------
   def __post_init__(self):
     self.color = norm_rgb(self.color)
+    self.cmap = self.color
+    super().__post_init__()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-class Plot(Tile):
+class Plot(Graphic):
   #-----------------------------------------------------------------------------
   def __init__(self,*,
     xy = None,
-    wrapper = None,
     style = None,
     **kwargs):
 
     super().__init__(**kwargs)
 
-    if style is None:
-      style = PlotStyle()
 
     self._xy = xy
-    self.style = style
 
   #-----------------------------------------------------------------------------
   @property
@@ -56,107 +56,101 @@ class Plot(Tile):
     self.buf[:] = '\0'
 
     h, w = self.shape
+    #
+    # mask4 = _interp_mask(4*w, 4*h, *self.xy)
+    # scale = mask4.astype(np.float32)
+    #
+    # scale_max = coarsen(scale, (2, 2), op = 'max')
+    # mean = (1/16) * coarsen(scale, (4, 4))
+    #
+    # mask2 = scale_max > 0
+    #
+    # count = coarsen(mask2, (2, 2), op = 'sum')
+    # mask, quads = _mask_quads(mask2)
+    #
+    # self.buf[mask] = quads[mask]
+    #
+    # self.fg[:] = np.where(
+    #   mask[:,:,np.newaxis],
+    #   np.minimum(255, (((mask/(0.95+0.05*count))[:,:,np.newaxis]) * np.array(self.style.color))).astype(np.uint8),
+    #   self.fg )
+    #
+    # self.bg[:] = np.where(
+    #   mask[:,:,np.newaxis],
+    #   ((mean[:,:,np.newaxis]) * np.array(self.style.color)).astype(np.uint8),
+    #   self.bg )
 
-    mask4 = _interp_mask(4*w, 4*h, *self.xy)
-    scale = mask4.astype(np.float32)
+    x, y = self.xy
 
-    scale_max = coarsen(scale, (2, 2), op = 'max')
-    mean = (1/16) * coarsen(scale, (4, 4))
+    z = _draw(
+      x0 = np.amin(x),
+      x1 = np.amax(x),
+      nx = 2*w,
+      ny = 2*h,
+      y0 = np.amin(y),
+      y1 = np.amax(y),
+      _x = x,
+      _y = y )
 
-    mask2 = scale_max > 0
+    self.arr = z
 
-    count = coarsen(mask2, (2, 2), op = 'sum')
-    mask, quads = _mask_quads(mask2)
-
-    self.buf[mask] = quads[mask]
-
-    self.fg[:] = np.where(
-      mask[:,:,np.newaxis],
-      np.minimum(255, (((mask/(0.95+0.05*count))[:,:,np.newaxis]) * np.array(self.style.color))).astype(np.uint8),
-      self.fg )
-
-    self.bg[:] = np.where(
-      mask[:,:,np.newaxis],
-      ((mean[:,:,np.newaxis]) * np.array(self.style.color)).astype(np.uint8),
-      self.bg )
+    super().render()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _interp_mask(nx, ny, _x, _y):
+def _draw(x0, x1, nx, y0, y1, ny, _x, _y):
 
   _ds = np.zeros_like(_x)
-  _ds[1:] = np.sqrt(np.diff(_x)**2 + np.diff(_y)**2)
+  _ds[1:] = ( np.diff(_x)**2 + np.diff(_y)**2 )**0.5
   _s = np.cumsum(_ds)
+  ls = _s[-1]
 
-  x0 = np.amin(_x)
-  lx = np.amax(_x) - x0
+  lx = x1 - x0
   dx = lx / nx
 
-  ns = 2*_s[-1] / dx
+  ly = y1 - y0
+  dy = ly / ny
 
-  s = 0.5*dx * (0.5 + np.arange(ns))
+  ds = 4*(dx**2 + dy**2)**0.5
+
+  ns = max(1, int(ls / ds))
+
+  s = ds * np.arange(ns+1)
 
   x = np.interp(s, _s, _x)
   y = np.interp(s, _s, _y)
 
-  y0 = np.amin(y)
-  ly = np.amax(y) - y0
-  dy = ly / ny
+  mx = (x >= x0) & (x <= x1)
+  my = (y >= y0) & (y <= y1)
+
+  x = x[mx]
+  y = y[my]
 
   yi = ny-1 - np.minimum(ny-1, np.round((y-y0)/dy).astype(np.int16) )
-
   xi = np.minimum(nx-1, np.round((x-x0)/dx).astype(np.int16) )
 
-  mask = np.zeros((ny,nx), dtype = bool)
+  z = np.zeros((ny, nx), dtype = np.float32)
 
-  mask[yi, xi] = True
+  from skimage.draw import line_aa
 
-  return mask
-#
-# #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# def _interp_quads(nx, ny, _x, _y):
-#   nx *= 2
-#   ny *= 2
-#
-#   mask = _interp_mask(nx, ny, _x, _y)
-#
-#   return _mask_quads(mask)
-#
-#   # n = np.zeros((ny,nx), dtype = np.uint8)
-#   # n[::2,::2] = Qa
-#   # n[::2,1::2] = Qb
-#   # n[1::2,1::2] = Qc
-#   # n[1::2,::2] = Qd
-#   # n = np.where(mask, n, 0)
-#   # n = n[::2,::2] | n[::2,1::2] | n[1::2,1::2] | n[1::2,::2]
-#   #
-#   # mask = n != 0
-#   #
-#   # return mask, QUADS[n[mask]]
+  for i in range(ns):
+    rr, cc, val = line_aa(
+      yi[i], xi[i],
+      yi[i+1], xi[i+1] )
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _mask_quads(mask):
+    # print(rr)
+    # print(cc)
+    # print(val)
 
-  n = np.zeros(mask.shape, dtype = np.uint8)
-  n[::2,::2] = Qa
-  n[::2,1::2] = Qb
-  n[1::2,1::2] = Qc
-  n[1::2,::2] = Qd
-  n = np.where(mask, n, 0)
-  n = n[::2,::2] | n[::2,1::2] | n[1::2,1::2] | n[1::2,::2]
+    # _z = z[rr, cc]
+    z[rr, cc] = np.maximum(z[rr, cc], val)
+    # print(i, np.amax(z))
 
-  mask = n != 0
+  z = np.minimum(1.0, 2*z)
 
-  return mask, QUADS[n]
+  # import matplotlib.pyplot as plt
+  # plt.plot(xi,yi)
+  # plt.show()
+  # plt.imshow(z)
+  # plt.show()
 
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _coarsen(arr, factor):
-  x_shape = np.empty( (4,), dtype = np.int32 )
-  x_shape[::2] = arr.shape
-  x_shape[::2] //= factor
-  x_shape[1::2] = factor
-  return arr.reshape(x_shape)
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def coarsen(arr, factor, op = 'sum'):
-  return getattr(_coarsen(arr, factor), op)(
-    axis = tuple(range(1, 4, 2)) )
+  return z

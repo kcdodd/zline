@@ -84,6 +84,9 @@ class Canvas(Box):
 
       fg = np.chararray(row_shape, itemsize = 20, unicode = True)
       fg[mask] = fg_color(self.fg[i, mask])
+      # print(self.fg[i])
+      # print(mask)
+      # print(fg)
 
       mask[1:] = np.logical_or.reduce(
         self.bg[i, 1:] != self.bg[i, :-1],
@@ -94,4 +97,5 @@ class Canvas(Box):
 
       row = [_fg+_bg+t for _fg, _bg, t in zip(fg, bg, buf) ]
       # print(row)
+      # input('')
       self.fp.write(''.join(row) + reset + cr)

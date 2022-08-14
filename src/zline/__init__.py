@@ -10,6 +10,10 @@ from .text import (
   TextWrapper,
   Text )
 
+from .graphic import (
+  Graphic,
+  GraphicStyle )
+
 from .plot import (
   Plot,
   PlotStyle )

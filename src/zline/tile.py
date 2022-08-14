@@ -44,6 +44,9 @@ class Tile:
 
   #-----------------------------------------------------------------------------
   def set_shape(self, max_shape):
+    if self._init_shape is not None:
+      max_shape = [min(s,m) for s,m in zip(self._init_shape, max_shape)]
+
     self.shape = max_shape
 
   #-----------------------------------------------------------------------------

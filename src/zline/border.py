@@ -18,6 +18,11 @@ BORDER_WEIGHTS = list(zip(T,R,B,L))
 BorderSpec = namedtuple('BorderSpec', [
   'top', 'right', 'bottom', 'left'])
 
+# margin
+# border
+# padding
+# content
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @dataclass
 class BorderStyle:
@@ -43,6 +48,10 @@ class BorderStyle:
     self.color = BorderSpec(*[Color(*norm_rgb(c)) for c in self.color])
 
     assert not self.rounded or all(w.value <= Weight.S.value for w in self.weight)
+
+  #-----------------------------------------------------------------------------
+  def borders(self):
+    return BorderSpec(*[ w != Weight.N for w in self.weight ])
 
   #-----------------------------------------------------------------------------
   def spc(self):
