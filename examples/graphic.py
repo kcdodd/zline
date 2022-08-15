@@ -14,7 +14,9 @@ from zline import (
   Canvas,
   Graphic,
   Plot,
-  GraphicStyle )
+  GraphicStyle,
+  AxisStyle,
+  Axis )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 with Canvas(shape=(40,80), alt = False) as app:
@@ -31,12 +33,19 @@ with Canvas(shape=(40,80), alt = False) as app:
 
   z = np.sin(x)**2 * np.cos(y)**2
 
-  app.content.append( Graphic(
+  app.content.append( Axis(
     pos = (20,0),
     shape = (20, 80),
-    arr = z,
-    style = GraphicStyle(
-      cmap = 'jet' )))
+    style = AxisStyle(
+      xtitle = "X-Axis",
+      xticks = [0, 0.25, 0.5, 0.75, 1],
+      xlabels = "{:.2f}",
+      ytitle = "Y-Axis",
+      yticks = [0, 1] ),
+    graph = Graphic(
+      arr = z,
+      style = GraphicStyle(
+        cmap = 'jet' )) ))
 
   app.set_shape(app.min_shape())
   app.render()

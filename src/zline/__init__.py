@@ -14,6 +14,10 @@ from .graphic import (
   Graphic,
   GraphicStyle )
 
+from .axis import (
+  AxisStyle,
+  Axis )
+
 from .plot import (
   Plot,
   PlotStyle )
