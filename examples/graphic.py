@@ -41,7 +41,8 @@ with Canvas(shape=(40,80), alt = False) as app:
       xticks = [0, 0.25, 0.5, 0.75, 1],
       xlabels = "{:.2f}",
       ytitle = "Y-Axis",
-      yticks = [0, 1] ),
+      yticks = [0, 0.5, 1]
+      ),
     graph = Graphic(
       arr = z,
       style = GraphicStyle(

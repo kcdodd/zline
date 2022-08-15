@@ -18,7 +18,6 @@ from .line import (
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 @dataclass
 class AxisStyle:
-  title : str = ''
 
   xtitle : str = ''
   xticks : list[float] = tuple()
@@ -27,13 +26,6 @@ class AxisStyle:
   ytitle : str = ''
   yticks : list[float] = tuple()
   ylabels : list[str] = '{:g}'
-
-  #-----------------------------------------------------------------------------
-  def spc(self):
-    h = 0 if self.x is None else self.x.spc()
-    w = 0 if self.y is None else self.y.spc()
-
-    return h, w
 
   #-----------------------------------------------------------------------------
   def ticks(self, nx, ny):
@@ -80,9 +72,15 @@ class Axis(Tile):
       if self.graph is None:
         return 4,4
       else:
-        _max_shape = Shape(*[s-4 for s in max_shape])
+        h,w = max_shape
+
+        xticks, xlabels, yticks, ylabels = self.style.ticks(w-2, h-2)
+        aw = max(len(l) for l in ylabels) if ylabels else 1
+        aw += 2
+        _max_shape = Shape(*[s-d for s,d in zip(max_shape, (4, aw))])
+
         shape = self.graph.min_shape(_max_shape)
-        return [s+4 for s in shape]
+        return [s+d for s,d in zip(shape, (4, aw))]
 
     return self._init_shape
 
@@ -91,7 +89,11 @@ class Axis(Tile):
     if self._init_shape is not None:
       max_shape = [min(s,m) for s,m in zip(self._init_shape, max_shape)]
 
-    _max_shape = Shape(*[s-4 for s in max_shape])
+    h,w = max_shape
+    xticks, xlabels, yticks, ylabels = self.style.ticks(w-2, h-2)
+    aw = max(len(l) for l in ylabels) if ylabels else 1
+    aw += 2
+    _max_shape = Shape(*[s-d for s,d in zip(max_shape, (4, aw))])
 
     self.graph.set_shape(_max_shape)
 
@@ -103,58 +105,58 @@ class Axis(Tile):
 
     self.graph.render()
     h,w = self.shape
-    xticks, xlabels, yticks, ylabels = self.style.ticks(w-2, h-2)
+    xticks, xlabels, yticks, ylabels = self.style.ticks(self.graph.shape[1]+2, h-2)
+    al = max(len(l) for l in ylabels) if ylabels else 1
 
-    i0 = 1
-    i1 = h-3
+    i0 = 2
+    i1 = h-2
 
-    j0 = 3
+    j0 = 1 + al
     j1 = w-1
 
     self.buf[i0:i1, j0:j1] = self.graph.buf
     self.fg[i0:i1, j0:j1] = self.graph.fg
     self.bg[i0:i1, j0:j1] = self.graph.bg
 
-    for j in range(w-2):
-      if j > 0 and j < w-3:
-        self.lines[[0,-3], 2+j] = Ll|Rl
+    for j in range(w-j0+1):
+      if j > 0 and j < w-j0:
+        self.lines[[1,-2], j0-1+j] = Ll|Rl
 
       if j in xticks:
-        self.lines[[0,-3], 2+j] |= Tl|Bl
+        self.lines[[1,-2], j0-1+j] |= Tl|Bl
 
 
     for i in range(h-2):
 
       if i > 0 and i < h-3:
-        self.lines[i, [2,-1]] = Tl|Bl
+        self.lines[i+1, [j0-1, -1]] = Tl|Bl
 
       if h-3-i in yticks:
-        self.lines[i, [2,-1]] |= Ll|Rl
+        self.lines[i+1, [j0-1, -1]] |= Ll|Rl
 
 
-    self.lines[0, 2] |= Bl|Rl
-    self.lines[0, -1] |= Ll|Bl
-    self.lines[-3, -1] |= Tl|Ll
-    self.lines[-3, 2] |= Tl|Rl
+    self.lines[1, j0-1] |= Bl|Rl
+    self.lines[1, -1] |= Ll|Bl
+    self.lines[-2, -1] |= Tl|Ll
+    self.lines[-2, j0-1] |= Tl|Rl
 
     for k, (tick, label) in enumerate(zip(xticks, xlabels)):
       if not label:
         continue
 
-      j0, j1, label = pos_center_text(w-2, tick, label)
-      self.buf[-2, (j0+2):(j1+2)] = label
+      k0, k1, label = pos_center_text(w-j0+1, tick, label)
+      self.buf[-1, (j0-1+k0):(j0-1+k1)] = label
 
-    if self.style.xtitle:
-      title = self.style.xtitle
+    for k, (tick, label) in enumerate(zip(yticks, ylabels)):
+      if not label:
+        continue
 
-      j0, j1, title = pos_center_text(w-2, (w-2)//2, title)
-      self.buf[-1, (j0+2):(j1+2)] = title
+      self.buf[h-2-tick, (j0-1-len(label)):(j0-1)] = text_array(label)
 
-    if self.style.ytitle:
-      title = self.style.ytitle
-      title = title.replace('-', '|')
-      i0, i1, title = pos_center_text(h-2, (h-2)//2, title)
-      self.buf[i0:i1, 0] = title
+    title = self.style.ytitle + ' / ' + self.style.xtitle
+
+    k0, k1, title = pos_center_text(w, w//2, title)
+    self.buf[0, k0:k1] = title
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def ticks(n, ticks, labels):
@@ -176,11 +178,15 @@ def ticks(n, ticks, labels):
   return _ticks, labels
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def pos_center_text(n, pos, text):
-
-  text = np.array(
+def text_array(text):
+  return np.array(
     [str(text)],
     dtype = np.unicode_ ).view('U1').reshape(1,-1)[0]
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def pos_center_text(n, pos, text):
+
+  text = text_array(text)
 
   j0 = max(0, min(pos - len(text)//2, n-len(text)))
   j1 = min(n, j0+len(text))
