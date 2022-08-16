@@ -117,6 +117,7 @@ class Axis(Tile):
     self.buf[i0:i1, j0:j1] = self.graph.buf
     self.fg[i0:i1, j0:j1] = self.graph.fg
     self.bg[i0:i1, j0:j1] = self.graph.bg
+    self.flags[i0:i1, j0:j1] = self.graph.flags
 
     for j in range(w-j0+1):
       if j > 0 and j < w-j0:
@@ -161,7 +162,7 @@ class Axis(Tile):
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def ticks(n, ticks, labels):
 
-  if not ticks:
+  if ticks is None or len(ticks) == 0:
     return list(), list()
 
   hi = np.amax(ticks)

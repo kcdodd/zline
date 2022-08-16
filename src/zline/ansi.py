@@ -1,7 +1,18 @@
 import numpy as np
+from itertools import compress
+
 from .color import (
   rgb_to_standard,
   rgb_to_8bit )
+
+from .tile import Flags
+
+FLAGS = [
+  Flags.B.value,
+  Flags.D.value,
+  Flags.I.value,
+  Flags.U.value,
+  Flags.K.value ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def goto(i, j):
@@ -31,59 +42,52 @@ def reset_style():
 def fg_standard(rgb):
   n = rgb_to_standard(rgb)
   return [
-    f"\u001b[{30+_n}m"
+    f"{30+_n}"
     for _n in n ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def fg_8bit(rgb):
   n = rgb_to_8bit(rgb)
   return [
-    f"\u001b[38;5;{_n}m"
+    f"38;5;{_n}"
     for _n in n ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def fg_24bit(rgb):
   rgb = np.atleast_2d(rgb)
   return [
-    f"\u001b[38;2;{r};{g};{b}m"
+    f"38;2;{r};{g};{b}"
     for r, g, b in rgb ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def bg_standard(rgb):
   n = rgb_to_standard(rgb)
   return [
-    f"\u001b[{40+_n}m"
+    f"{40+_n}"
     for _n in n ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def bg_8bit(rgb, reset_rgb = None ):
+def bg_8bit(rgb):
   n = rgb_to_8bit(rgb)
 
-  if reset_rgb is None:
-    return [
-      f"\u001b[48;5;{_n}m"
-      for _n in n ]
-
-  else:
-    reset_n = rgb_to_8bit(reset_rgb)
-
-    return [
-      f"\u001b[48;5;{_n}m" if _n != reset_n else "\u001b[49m"
-      for _n in n ]
+  return [
+    f"48;5;{_n}"
+    for _n in n ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def bg_24bit(rgb, reset_rgb = None ):
+def bg_24bit(rgb):
   rgb = np.atleast_2d(rgb)
 
-  if reset_rgb is None:
-    return [
-      f"\u001b[48;2;{r};{g};{b}m"
-      for r, g, b in rgb ]
+  return [
+    f"48;2;{r};{g};{b}"
+    for r, g, b in rgb ]
 
-  else:
-    return [
-      f"\u001b[48;2;{r};{g};{b}m" if (r,g,b) != reset_rgb else "\u001b[49m"
-      for r, g, b in rgb ]
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def flags(flags):
+  # TODO: generate lookup
+  return [
+    ';'.join([ str(i+(1 if (fl & f) else 22)) for i,fl in enumerate(FLAGS) ])
+    for f in flags ]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 FG = {

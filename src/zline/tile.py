@@ -3,6 +3,7 @@ from textwrap import TextWrapper
 from collections import namedtuple
 from dataclasses import dataclass, field, asdict, fields
 import sys
+from enum import Enum
 
 from .color import (
   Color,
@@ -13,6 +14,14 @@ from .line import (
   LINES )
 
 from .border import BorderStyle
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+class Flags(Enum):
+  B = 0b00001
+  D = 0b00010
+  I = 0b00100
+  U = 0b01000
+  K = 0b10000
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Shape = namedtuple('Shape', [
@@ -26,12 +35,14 @@ class Tile:
   #-----------------------------------------------------------------------------
   def __init__(self,*,
     pos = None,
-    shape = None ):
+    shape = None,
+    transparent = (0,0,0) ):
 
     self._pos = None
     self.pos = pos
     self._init_shape = shape
     self._shape = None
+    self._transparent = transparent
 
   #-----------------------------------------------------------------------------
   def min_shape(self,
@@ -70,6 +81,7 @@ class Tile:
 
     self.fg = 255*np.ones( self.shape + (3,), dtype = np.uint8 )
     self.bg = np.zeros( self.shape + (3,), dtype = np.uint8 )
+    self.flags = np.zeros( self.shape, dtype = np.uint8 )
 
   #-----------------------------------------------------------------------------
   @property
@@ -83,6 +95,11 @@ class Tile:
       pos = (0,0)
 
     self._pos = Pos(*pos)
+
+  #-----------------------------------------------------------------------------
+  @property
+  def transparent(self):
+    return self._transparent
 
   #-----------------------------------------------------------------------------
   def render(self):

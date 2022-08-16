@@ -14,6 +14,7 @@ from zline import (
   Canvas,
   Graphic,
   Plot,
+  PlotStyle,
   GraphicStyle,
   AxisStyle,
   Axis )
@@ -23,9 +24,18 @@ with Canvas(shape=(40,80), alt = False) as app:
   x = np.linspace(0, 4*np.pi, 100)
   y = np.sin(x)
 
-  app.content.append( Plot(
+  app.content.append( Axis(
     shape = (20, 80),
-    xy = (x, y) ))
+    style = AxisStyle(
+      xtitle = "X-Axis",
+      xticks = x[::25],
+      xlabels = "{:.2f}",
+      ytitle = "Y-Axis",
+      yticks = [-1, 0, 1] ),
+    graph = Plot(
+      style = PlotStyle(
+        color = '#ff00ff' ),
+      xy = (x, y)) ))
 
   x,y = np.meshgrid(
     np.linspace(0, 4*np.pi, 100),
@@ -41,8 +51,7 @@ with Canvas(shape=(40,80), alt = False) as app:
       xticks = [0, 0.25, 0.5, 0.75, 1],
       xlabels = "{:.2f}",
       ytitle = "Y-Axis",
-      yticks = [0, 0.5, 1]
-      ),
+      yticks = [0, 0.5, 1] ),
     graph = Graphic(
       arr = z,
       style = GraphicStyle(

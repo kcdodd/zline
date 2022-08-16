@@ -148,9 +148,13 @@ class Box(Tile):
       s = tuple(slice(o+i, o+i+d) for o,i,d in zip(spc[::3], cell.pos, cell.shape))
       mask = (cell.buf != '\0') & cmask[s]
 
-      for attr in ['buf', 'fg', 'bg']:
+      for attr in ['buf', 'fg', 'bg', 'flags']:
         view = getattr(self, attr)[s]
         _mask = mask
+
+        if 'attr' == 'bg' and cell.transparent is not None:
+          _mask = _mask & (cell.bg != cell.transparent).any(axis = 2)
+
         if view.ndim == 3:
           _mask = _mask[:, :, np.newaxis]
 

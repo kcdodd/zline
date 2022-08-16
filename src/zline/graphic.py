@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 @dataclass
 class GraphicStyle:
   cmap : str = None
+  pattern: str = 'quad'
 
   #-----------------------------------------------------------------------------
   def __post_init__(self):
@@ -38,6 +39,8 @@ class GraphicStyle:
       cmap = np.array(norm_rgb(cmap))
 
       self.cmap = lambda arr: ( arr[:,:,np.newaxis] * cmap ) / 255
+
+    assert self.pattern in ['quad', 'dot']
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 class Graphic(Tile):
@@ -70,7 +73,15 @@ class Graphic(Tile):
     self.buf[:] = '\0'
 
     h, w = self.shape
-    shape = (2*h, 2*w)
+
+    if self.style.pattern == 'quad':
+      shape = (2*h, 2*w)
+
+    elif self.style.pattern == 'dot':
+      shape = (4*h, 2*w)
+
+    else:
+      assert False
 
     arr = self.arr
 
@@ -78,9 +89,17 @@ class Graphic(Tile):
       import skimage
       arr = skimage.transform.resize(arr, shape)
 
-    mask, quads, avg_fg, avg_bg = _render_quads(arr)
+    if self.style.pattern == 'quad':
+      mask, buf, avg_fg, avg_bg = _render_quads(arr)
 
-    self.buf[mask] = quads[mask]
+    elif self.style.pattern == 'dot':
+      mask, buf, avg_fg, avg_bg = _render_dots(arr)
+
+    else:
+      assert False
+
+
+    self.buf[mask] = buf[mask]
 
     self.fg[:] = np.where(
       mask[:,:,np.newaxis],
@@ -137,12 +156,46 @@ def _render_quads(arr):
 
   avg_bg = 0.75*_lo + 0.25*_mid
 
-  import matplotlib.pyplot as plt
-
   qmask, quads = _mask_quads(mask)
 
-
   return qmask, quads, avg_fg, avg_bg
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def _mask_dots(mask):
+  n = np.ones(mask.shape, dtype = np.uint32)
+
+  # first column
+  n[::4,::2] = 0x01
+  n[1::4,::2] = 0x02
+  n[2::4,::2] = 0x04
+  n[3::4,::2] = 0x40
+
+  # second column
+  n[::4,1::2] = 0x08
+  n[1::4,1::2] = 0x10
+  n[2::4,1::2] = 0x20
+  n[3::4,1::2] = 0x80
+
+  n = np.where(mask, n, 0)
+  n = coarsen(n, (4,2), 'sum').astype(dtype = n.dtype)
+  mask = n != 0
+  n += 0x2800
+
+  chars = n.view('<U1')
+
+  return mask, chars
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def _render_dots(arr, lo = 0.0, hi = np.inf):
+
+  mask = (arr > lo) & (arr <= hi)
+
+  avg_fg = coarsen(arr, (4,2), 'max')
+  avg_bg = np.zeros_like(avg_fg)
+
+  qmask, dots = _mask_dots(mask)
+
+  return qmask, dots, avg_fg, avg_bg
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def _coarsen(arr, factor):

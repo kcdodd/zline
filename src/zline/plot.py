@@ -9,7 +9,7 @@ from .color import (
   norm_rgb,
   rgb_to_8bit )
 
-from .tile import Tile, Shape, Pos
+from .tile import Tile, Shape, Pos, Flags
 
 from .line import (
   QUADS,
@@ -26,6 +26,7 @@ class PlotStyle(GraphicStyle):
   def __post_init__(self):
     self.color = norm_rgb(self.color)
     self.cmap = self.color
+    self.pattern = 'dot'
     super().__post_init__()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -36,7 +37,10 @@ class Plot(Graphic):
     style = None,
     **kwargs):
 
-    super().__init__(**kwargs)
+    if style is None:
+      style = PlotStyle()
+
+    super().__init__(style = style, **kwargs)
 
 
     self._xy = xy
@@ -82,19 +86,45 @@ class Plot(Graphic):
 
     x, y = self.xy
 
-    z = _draw(
+    z = _plot (
       x0 = np.amin(x),
       x1 = np.amax(x),
       nx = 2*w,
-      ny = 2*h,
+      ny = 4*h,
       y0 = np.amin(y),
       y1 = np.amax(y),
       _x = x,
       _y = y )
 
     self.arr = z
+    self.flags[:] = Flags.B.value
 
     super().render()
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+def _plot(x0, x1, nx, y0, y1, ny, _x, _y):
+
+  lx = x1 - x0
+  dx = lx / nx
+
+  ly = y1 - y0
+  dy = ly / ny
+
+  xi = np.arange(nx)
+  x = x0 + dx * xi
+  y = np.interp(x, _x, _y)
+
+  m = (y >= y0) & (y <= y1)
+  xi = xi[m]
+  x = x[m]
+  y = y[m]
+
+  yi = ny-1 - np.minimum(ny-1, np.round((y-y0)/dy).astype(np.int16) )
+
+  z = np.zeros((ny, nx), dtype = np.float32)
+  z[yi,xi] = 1.0
+
+  return z
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def _draw(x0, x1, nx, y0, y1, ny, _x, _y):
@@ -137,13 +167,7 @@ def _draw(x0, x1, nx, y0, y1, ny, _x, _y):
       yi[i], xi[i],
       yi[i+1], xi[i+1] )
 
-    # print(rr)
-    # print(cc)
-    # print(val)
-
-    # _z = z[rr, cc]
     z[rr, cc] = np.maximum(z[rr, cc], val)
-    # print(i, np.amax(z))
 
   z = np.minimum(1.0, 2*z)
 

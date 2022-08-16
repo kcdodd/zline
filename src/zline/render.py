@@ -7,6 +7,7 @@ from .ansi import (
   goto,
   move,
   reset_style,
+  flags,
   FG,
   BG )
 
@@ -74,28 +75,39 @@ class Canvas(Box):
     fg_color = FG[8]
     bg_color = BG[8]
     reset = reset_style()
+    esc = np.full(row_shape, dtype = np.object_, fill_value = '\x1b[')
 
     for i in range(self.shape[0]):
       buf = self.buf[i]
+      fmt = np.full(row_shape, dtype = np.object_, fill_value = '')
 
       mask[1:] = np.logical_or.reduce(
         self.fg[i, 1:] != self.fg[i, :-1],
         axis = 1 )
 
-      fg = np.chararray(row_shape, itemsize = 20, unicode = True)
-      fg[mask] = fg_color(self.fg[i, mask])
-      # print(self.fg[i])
-      # print(mask)
-      # print(fg)
+      fmt[mask] = fg_color(self.fg[i, mask])
 
-      mask[1:] = np.logical_or.reduce(
+      if self.transparent is not None:
+        bg_mask = (self.bg[i] != self.transparent).any(axis = 1)
+      else:
+        bg_mask = np.ones_like(mask)
+
+      bg_mask[1:] &= np.logical_or.reduce(
         self.bg[i, 1:] != self.bg[i, :-1],
         axis = 1 )
 
-      bg = np.chararray(row_shape, itemsize = 20, unicode = True)
-      bg[mask] = bg_color(self.bg[i, mask], reset_rgb = None)
+      fmt[bg_mask & (fmt != '')] += ';'
+      fmt[bg_mask] += bg_color(self.bg[i, bg_mask])
 
-      row = [_fg+_bg+t for _fg, _bg, t in zip(fg, bg, buf) ]
+
+      mask[1:] = self.flags[i, 1:] != self.flags[i, :-1]
+      fmt[mask & (fmt != '')] += ';'
+      fmt[mask] += flags(self.flags[i, mask])
+
+      m = fmt != ''
+      fmt[m] = esc[m] + fmt[m] + 'm'
+
+      row = fmt + buf
       # print(row)
       # input('')
       self.fp.write(''.join(row) + reset + cr)
