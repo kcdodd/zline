@@ -41,8 +41,12 @@ class Tile:
     self._pos = None
     self.pos = pos
     self._init_shape = shape
-    self._shape = None
+    self._shape = Shape(0,0)
     self._transparent = transparent
+
+  #-----------------------------------------------------------------------------
+  def __bool__(self):
+    return self.shape[0]*self.shape[1] > 0
 
   #-----------------------------------------------------------------------------
   def min_shape(self,
@@ -74,6 +78,9 @@ class Tile:
     self._shape = Shape(*shape)
 
     assert self.shape.h * self.shape.w < 2**20
+
+    if not self:
+      return
 
     self.buf = np.zeros(self.shape, dtype = np.unicode_)
     self.lines = np.zeros( self.shape, dtype = np.uint16 )

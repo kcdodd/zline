@@ -1,4 +1,5 @@
 import sys
+import os.path as osp
 import numpy as np
 import time
 from zline.line import (
@@ -19,8 +20,10 @@ from zline import (
   AxisStyle,
   Axis )
 
+DIR = osp.dirname(osp.abspath(__file__))
+
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-with Canvas(shape=(40,80), alt = False) as app:
+with Canvas(shape=(80,80), alt = False) as app:
   x = np.linspace(0, 4*np.pi, 100)
   y = np.sin(x)
 
@@ -55,9 +58,29 @@ with Canvas(shape=(40,80), alt = False) as app:
     graph = Graphic(
       arr = z,
       style = GraphicStyle(
-        pattern = 'dot',
+        pattern = 'quad',
         bg_scale = 0.5,
-        cmap = 'viridis8' )) ))
+        cmap = 'hot8' )) ))
+
+  from PIL import Image, ImageOps
+  with Image.open(osp.join(DIR,'lenna_test.png')) as im:
+    gray = np.array(ImageOps.grayscale(im), dtype = np.float32)
+
+  gray -= np.amin(gray)
+  hi = np.amax(gray)
+
+  if hi > 0.0:
+    gray /= hi
+
+  app.content.append(
+    Graphic(
+      arr = gray,
+      pos = (40,0),
+      shape = (40, 80),
+      style = GraphicStyle(
+        pattern = 'dot',
+        bg_scale = 0.2,
+        cmap = 'gray8' )) )
 
   app.set_shape(app.min_shape())
   app.render()

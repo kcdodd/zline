@@ -59,6 +59,9 @@ class Box(Tile):
       hm = _max_shape.h - cell.pos.row
       wm = _max_shape.w - cell.pos.col
 
+      if hm <= 0 or wm <= 0:
+        continue
+
       _h, _w = cell.min_shape((hm, wm))
 
       h = max(h, cell.pos.row + _h )
@@ -84,10 +87,13 @@ class Box(Tile):
 
     for cell in self.content:
 
-      hm = _max_shape.h - cell.pos.row
-      wm = _max_shape.w - cell.pos.col
+      hm = max(0, _max_shape.h - cell.pos.row)
+      wm = max(0, _max_shape.w - cell.pos.col)
 
       cell.set_shape((hm, wm))
+
+      if not cell:
+        continue
 
       h = max(h, cell.pos.row + cell.shape.h )
       w = max(w, cell.pos.col + cell.shape.w )
@@ -114,6 +120,9 @@ class Box(Tile):
     _fg_num = np.ones( self.shape, dtype = np.uint32 )
 
     for cell in self.content:
+      if not cell:
+        continue
+
       cell.render()
 
       s = tuple(slice(o+i, o+i+d) for o,i,d in zip(spc[::3], cell.pos, cell.shape))
@@ -144,6 +153,8 @@ class Box(Tile):
     cmask = self.lines == 0
 
     for cell in self.content:
+      if not cell:
+        continue
 
       s = tuple(slice(o+i, o+i+d) for o,i,d in zip(spc[::3], cell.pos, cell.shape))
       mask = (cell.buf != '\0') & cmask[s]
