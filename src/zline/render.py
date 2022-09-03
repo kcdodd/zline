@@ -7,6 +7,8 @@ from .ansi import (
   goto,
   move,
   reset_style,
+  fg_reset,
+  bg_reset,
   flags,
   FG,
   BG )
@@ -91,6 +93,12 @@ class Canvas(Box):
         bg_mask = (self.bg[i] != self.transparent).any(axis = 1)
       else:
         bg_mask = np.ones_like(mask)
+
+      bg_reset_mask = ~bg_mask
+      bg_reset_mask[1:] &= bg_mask[1:] != bg_mask[:-1]
+
+      fmt[bg_reset_mask & (fmt != '')] += ';'
+      fmt[bg_reset_mask] += bg_reset()
 
       bg_mask[1:] &= np.logical_or.reduce(
         self.bg[i, 1:] != self.bg[i, :-1],

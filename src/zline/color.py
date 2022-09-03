@@ -7,61 +7,6 @@ Color = namedtuple('Color', [
   'r', 'g', 'b' ])
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _rgb_ls(rgb):
-  maxc = np.amax(rgb, axis = 1)
-  minc = np.amin(rgb, axis = 1)
-  sumc = maxc + minc
-  rangec = maxc - minc
-  l = 0.5 * sumc
-
-  return l, np.where(
-    rangec < 1e-6,
-    0.0,
-    np.where(
-      sumc <= 1.0,
-      rangec / np.maximum(1e-6, sumc),
-      rangec / np.maximum(1e-6, 2.0 - sumc) ))
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _rgb_to_hls(rgb):
-  rgb = np.atleast_2d(rgb)
-
-  maxc = np.amax(rgb, axis = 1)
-  minc = np.amin(rgb, axis = 1)
-  sumc = maxc + minc
-  rangec = maxc - minc
-  l = 0.5 * sumc
-
-  s = np.where(
-    rangec < 1e-6,
-    0.0,
-    np.where(
-      sumc <= 1.0,
-      rangec / sumc,
-      rangec / (2.0 - sumc) ))
-
-  r = rgb[:,0]
-  rc = (maxc-r) / rangec
-
-  g = rgb[:,1]
-  gc = (maxc-g) / rangec
-
-  b = rgb[:,2]
-  bc = (maxc-b) / rangec
-
-  h = (1./6.)*np.where(
-    r == maxc,
-    bc - gc,
-    np.where(
-      g == maxc,
-      2.0+rc-bc,
-      4.0+gc-rc ))
-
-  h %= 1.0
-
-  return h, l, s
-
-#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 STANDARD = np.array([
   (0, 0, 0),
   (170, 0, 0),
@@ -126,51 +71,67 @@ def std_8bit_lookup():
 STANDARD_8BIT = std_8bit_lookup()
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+STD_PALETTE = np.array(
+  [ [0,0,0],
+    [0x80,0,0], [0,0x80,0], [0x80,0x80,0],
+    [0,0,0x80], [0x80,0,0x80], [0,0x80,0x80],
+    [0xc0,0xc0,0xc0] ],
+  dtype = np.uint8 )
+
+COLOR_LEVELS = np.array([0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff])
+COLOR_THRESH = COLOR_LEVELS[:-1] + np.round(np.diff(COLOR_LEVELS)/2)
+
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def rgb_to_8bit(rgb):
-  """https://github.com/Textualize/rich/blob/master/rich/color.py
-  """
   rgb = np.atleast_2d(rgb)
   shape = rgb.shape[:-1]
   rgb = rgb.reshape(-1, 3)
 
-  rgb = rgb / 255.0
-  r = rgb[:,0]
-  g = rgb[:,1]
-  b = rgb[:,2]
+  # arrays to accumulate the 'best' color index by minimizing the max RGB error
+  out = np.zeros(rgb.shape[:1], dtype = np.uint8)
+  err = np.zeros(rgb.shape[:1], dtype = np.uint8)
 
-  l, s = _rgb_ls(rgb)
+  # find nearest standard color
+  # the first 0-7 colors are combinations of RGB
+  # use 0x80 as the threshold for setting each RGB to true/false
+  # the next 8-15 are duplicated in the >15 'non-standard' colors
+  out[:] = (rgb[:,0] >= 0x80) + 2*(rgb[:,1] >= 0x80) + 4*(rgb[:,2] >= 0x80)
+  err[:] = np.amax( np.abs(STD_PALETTE[out] - rgb), axis = 1 )
 
-  gray = np.round( l * 25.0 ).astype(np.uint8)
+  # Divide the 6x6x6 color block by thresholds 'centered' between each level
+  # searchsorted returns which of these ranges the input falls into
+  ilvl = np.searchsorted(COLOR_THRESH, rgb)
+  # compute the resulting error using the actual levels
+  color_err = np.amax( np.abs(COLOR_LEVELS[ilvl] - rgb), axis = 1 )
 
-  gray = np.where(
-    gray == 0,
-    16,
-    np.where(
-      gray == 25,
-      231,
-      231 + gray ) )
+  out[:] = np.where(
+    color_err <= err,
+    # convert the individual RGB levels to the index into the 6x6x6 block,
+    # offset by the starting index 16
+    16 + ilvl[:,2] + 6*ilvl[:,1] + 36*ilvl[:,0],
+    out )
+  err[:] = np.minimum(color_err, err)
 
-  color = (
-    16
-    + 36 * np.round( r * 5.0 ).astype(np.uint8)
-    + 6 * np.round( g * 5.0 ).astype(np.uint8)
-    + np.round( b * 5.0 ).astype(np.uint8) )
+  # Divide the grayscale levels, and normalize the input value to a 'lightness'
+  # defined by the average between the highest and lowest RGB value
+  l = (np.amax(rgb, axis = 1) + np.amin(rgb, axis = 1)) // 2
+  # threshold is 'centered' between each gray level, width of 10
+  # the first gray level is 8, so will match any lightness from (8-5) to (8+4)
+  idx = (l - 3)//10
 
-  return np.where(
-    s < 0.1,
-    gray,
-    color ).reshape(shape)
+  gray_err = np.amax(
+    np.abs(np.where( l < 3, 0, 8 + 10*idx )[:,None] - rgb),
+    axis = 1 )
 
-  # if s < 0.1:
-  #   gray = round(l * 25.0)
-  #   if gray == 0:
-  #     return 16
-  #   elif gray == 25:
-  #     return 231
-  #   else:
-  #     return 231 + gray
-  #
-  # return ( 16 + 36 * round(r * 5.0) + 6 * round(g * 5.0) + round(b * 5.0) )
+  out[:] = np.where(
+    gray_err <= err,
+    # offset to output index in the gray levels >=232
+    # lightness < 3 is mapped to output index 16 (black)
+    np.where( l < 3, 16, 232 + idx ),
+    out )
+  err[:] = np.minimum(gray_err, err)
+
+  return out.reshape(shape)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def rgb_to_standard(rgb):

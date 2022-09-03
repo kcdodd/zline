@@ -57,7 +57,7 @@ class Plot(Graphic):
 
   #-----------------------------------------------------------------------------
   def render(self):
-    self.buf[:] = '\0'
+    # self.buf[:] = '\0'
 
     h, w = self.shape
     #
@@ -86,7 +86,7 @@ class Plot(Graphic):
 
     x, y = self.xy
 
-    z = _plot (
+    z = _plot(
       x0 = np.amin(x),
       x1 = np.amax(x),
       nx = 2*w,

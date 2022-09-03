@@ -39,7 +39,7 @@ with Canvas(shape=(40,80), alt = False) as app:
 
   x,y = np.meshgrid(
     np.linspace(0, 4*np.pi, 100),
-    np.linspace(0, 4*np.pi, 100) )
+    np.linspace(0, 2*np.pi, 100) )
 
   z = np.sin(x)**2 * np.cos(y)**2
 
@@ -55,7 +55,9 @@ with Canvas(shape=(40,80), alt = False) as app:
     graph = Graphic(
       arr = z,
       style = GraphicStyle(
-        cmap = 'jet' )) ))
+        pattern = 'dot',
+        bg_scale = 0.5,
+        cmap = 'viridis8' )) ))
 
   app.set_shape(app.min_shape())
   app.render()

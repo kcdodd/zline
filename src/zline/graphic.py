@@ -9,6 +9,8 @@ from .color import (
   norm_rgb,
   rgb_to_8bit )
 
+from .cmap import get_cmap
+
 from .tile import Tile, Shape, Pos
 
 from .line import (
@@ -21,14 +23,19 @@ import matplotlib.pyplot as plt
 @dataclass
 class GraphicStyle:
   cmap : str = None
-  pattern: str = 'quad'
+  pattern : str = 'quad'
+  thresh : float = 0.5
+  fg_scale : float = 1.0
+  bg_scale : float = 0.0
 
   #-----------------------------------------------------------------------------
   def __post_init__(self):
     if callable(self.cmap):
       pass
+
     elif isinstance(self.cmap, str):
-      self.cmap = plt.get_cmap(self.cmap)
+
+      self.cmap = get_cmap(self.cmap)
 
     else:
       cmap = self.cmap
@@ -38,7 +45,7 @@ class GraphicStyle:
 
       cmap = np.array(norm_rgb(cmap))
 
-      self.cmap = lambda arr: ( arr[:,:,np.newaxis] * cmap ) / 255
+      self.cmap = lambda arr: np.clip(np.round( arr[:,:,np.newaxis] * cmap ), 0, 255).astype(np.uint8)
 
     assert self.pattern in ['quad', 'dot']
 
@@ -71,6 +78,8 @@ class Graphic(Tile):
   #-----------------------------------------------------------------------------
   def render(self):
     self.buf[:] = '\0'
+    self.fg[:] = 255
+    self.bg[:] = 0
 
     h, w = self.shape
 
@@ -90,10 +99,18 @@ class Graphic(Tile):
       arr = skimage.transform.resize(arr, shape)
 
     if self.style.pattern == 'quad':
-      mask, buf, avg_fg, avg_bg = _render_quads(arr)
+      mask, buf, avg_fg, avg_bg = _render_quads(
+        arr = arr,
+        thresh = self.style.thresh,
+        fg_scale = self.style.fg_scale,
+        bg_scale = self.style.bg_scale )
 
     elif self.style.pattern == 'dot':
-      mask, buf, avg_fg, avg_bg = _render_dots(arr)
+      mask, buf, avg_fg, avg_bg = _render_dots(
+        arr = arr,
+        thresh = self.style.thresh,
+        fg_scale = self.style.fg_scale,
+        bg_scale = self.style.bg_scale )
 
     else:
       assert False
@@ -103,12 +120,12 @@ class Graphic(Tile):
 
     self.fg[:] = np.where(
       mask[:,:,np.newaxis],
-      np.clip(255*self.style.cmap(avg_fg)[:,:,:3], 0, 255).astype(np.uint8),
+      self.style.cmap(avg_fg),
       self.fg )
 
     self.bg[:] = np.where(
       mask[:,:,np.newaxis],
-      np.clip(255*self.style.cmap(avg_bg)[:,:,:3], 0, 255).astype(np.uint8),
+      self.style.cmap(avg_bg),
       self.bg )
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -127,7 +144,7 @@ def _mask_quads(mask):
   return mask, QUADS[n]
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _render_quads(arr):
+def _render_quads(arr, thresh, fg_scale, bg_scale):
   h, w = arr.shape
   h //= 2
   w //= 2
@@ -135,7 +152,7 @@ def _render_quads(arr):
 
   _arr = _coarsen(arr, (2,2))
 
-  _mid = np.average(
+  _lo = np.amin(
     _arr,
     axis = (1,3) )
 
@@ -143,18 +160,14 @@ def _render_quads(arr):
     _arr,
     axis = (1,3) )
 
-  mid = refine(_mid, (2,2))
+  lo = refine(_lo, (2,2))
   hi = refine(_hi, (2,2))
 
-  mask = arr >= 0.75*hi + 0.25*mid
+  mask = arr > lo + thresh*(hi - lo)
 
-  avg_fg = 0.75*_hi + 0.25*_mid
-
-  _lo = np.amin(
-    _arr,
-    axis = (1,3) )
-
-  avg_bg = 0.75*_lo + 0.25*_mid
+  delta = _hi - _lo
+  avg_fg = _lo + fg_scale*delta
+  avg_bg = _lo + bg_scale*delta
 
   qmask, quads = _mask_quads(mask)
 
@@ -186,12 +199,26 @@ def _mask_dots(mask):
   return mask, chars
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def _render_dots(arr, lo = 0.0, hi = np.inf):
+def _render_dots(arr, thresh, fg_scale, bg_scale):
 
-  mask = (arr > lo) & (arr <= hi)
+  _arr = _coarsen(arr, (4,2))
 
-  avg_fg = coarsen(arr, (4,2), 'max')
-  avg_bg = np.zeros_like(avg_fg)
+  _lo = np.amin(
+    _arr,
+    axis = (1,3) )
+
+  _hi = np.amax(
+    _arr,
+    axis = (1,3) )
+
+  lo = refine(_lo, (4,2))
+  hi = refine(_hi, (4,2))
+
+  mask = arr > lo + thresh*(hi - lo)
+
+  delta = _hi - _lo
+  avg_fg = _lo + fg_scale*delta
+  avg_bg = _lo + bg_scale*delta
 
   qmask, dots = _mask_dots(mask)
 
